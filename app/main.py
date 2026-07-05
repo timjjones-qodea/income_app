@@ -38,6 +38,17 @@ from app.services import (
 )
 
 
+AIC_INCOME_BUILDER_BASE_URL = "https://www.theaic.co.uk/income-finder/income-builder"
+AIC_PORTFOLIO_IDS = {
+    "Tim ISA": "40171",  # Tim NISA on AIC
+    "Tim SIPP": "42759",
+    "Tim GIA": "43171",  # Tim VCT on AIC
+    "Wendy ISA": "40169",  # Wendy NISA on AIC
+    "Wendy SIPP": "42717",
+    "Wendy GIA": "42743",  # Wendy Equity on AIC
+}
+
+
 def seed_reference_data(db: Session) -> None:
     wife = db.scalar(select(Person).where(Person.name == "Wife"))
     wendy = db.scalar(select(Person).where(Person.name == "Wendy"))
@@ -102,6 +113,15 @@ def seed_reference_data(db: Session) -> None:
         account.tax_treatment = tax_treatment
         if notes and not account.notes:
             account.notes = notes
+        direct_aic_url = (
+            f"{AIC_INCOME_BUILDER_BASE_URL}/{AIC_PORTFOLIO_IDS[account_name]}"
+        )
+        old_shared_url = f"{AIC_INCOME_BUILDER_BASE_URL}/42759"
+        if not account.aic_portfolio_url or (
+            account_name != "Tim SIPP"
+            and account.aic_portfolio_url.rstrip("/") == old_shared_url
+        ):
+            account.aic_portfolio_url = direct_aic_url
     db.commit()
 
 

@@ -48,4 +48,27 @@ def test_seed_migrates_wife_to_wendy_and_adds_gias(db):
     assert accounts["Wendy ISA"].owner.name == "Wendy"
     assert accounts["Tim GIA"].tax_treatment == "VCT dividends treated as tax-free"
     assert accounts["Wendy GIA"].tax_treatment == "Unwrapped taxable investment account"
+    assert {
+        account_name: account.aic_portfolio_url
+        for account_name, account in accounts.items()
+    } == {
+        "Tim GIA": "https://www.theaic.co.uk/income-finder/income-builder/43171",
+        "Tim ISA": "https://www.theaic.co.uk/income-finder/income-builder/40171",
+        "Tim SIPP": "https://www.theaic.co.uk/income-finder/income-builder/42759",
+        "Wendy GIA": "https://www.theaic.co.uk/income-finder/income-builder/42743",
+        "Wendy ISA": "https://www.theaic.co.uk/income-finder/income-builder/40169",
+        "Wendy SIPP": "https://www.theaic.co.uk/income-finder/income-builder/42717",
+    }
 
+
+def test_seed_preserves_a_manually_changed_aic_url(db):
+    seed_reference_data(db)
+    account = db.scalar(select(Account).where(Account.account_name == "Tim ISA"))
+    account.aic_portfolio_url = (
+        "https://www.theaic.co.uk/income-finder/income-builder/99999"
+    )
+    db.commit()
+
+    seed_reference_data(db)
+
+    assert account.aic_portfolio_url.endswith("/99999")
