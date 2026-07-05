@@ -38,34 +38,76 @@ from app.services import (
 )
 
 
+def seed_reference_data(db: Session) -> None:
+    wife = db.scalar(select(Person).where(Person.name == "Wife"))
+    wendy = db.scalar(select(Person).where(Person.name == "Wendy"))
+    if wife and not wendy:
+        wife.name = "Wendy"
+        wendy = wife
+        db.flush()
+    elif wife and wendy and wife.id != wendy.id:
+        for account in wife.accounts:
+            account.owner = wendy
+        db.delete(wife)
+        db.flush()
+
+    people = {}
+    for name in ("Tim", "Wendy"):
+        person = db.scalar(select(Person).where(Person.name == name))
+        if not person:
+            person = Person(name=name, tax_residency="UK")
+            db.add(person)
+            db.flush()
+        people[name] = person
+
+    for old_name, new_name in (("Wife ISA", "Wendy ISA"), ("Wife SIPP", "Wendy SIPP")):
+        legacy = db.scalar(select(Account).where(Account.account_name == old_name))
+        replacement = db.scalar(select(Account).where(Account.account_name == new_name))
+        if legacy and not replacement:
+            legacy.account_name = new_name
+            legacy.owner_person_id = people["Wendy"].id
+            db.flush()
+
+    account_specs = (
+        ("Tim", "ISA", "Tax-free ISA", None),
+        ("Tim", "SIPP", "Pension wrapper", None),
+        (
+            "Tim",
+            "GIA",
+            "VCT dividends treated as tax-free",
+            "VCT-only general investment account.",
+        ),
+        ("Wendy", "ISA", "Tax-free ISA", None),
+        ("Wendy", "SIPP", "Pension wrapper", None),
+        (
+            "Wendy",
+            "GIA",
+            "Unwrapped taxable investment account",
+            "General investment account outside a tax wrapper.",
+        ),
+    )
+    for owner, wrapper, tax_treatment, notes in account_specs:
+        account_name = f"{owner} {wrapper}"
+        account = db.scalar(select(Account).where(Account.account_name == account_name))
+        if not account:
+            account = Account(
+                provider="AJ Bell",
+                account_name=account_name,
+                owner_person_id=people[owner].id,
+                wrapper_type=wrapper,
+                currency="GBP",
+            )
+            db.add(account)
+        account.owner_person_id = people[owner].id
+        account.tax_treatment = tax_treatment
+        if notes and not account.notes:
+            account.notes = notes
+    db.commit()
+
+
 def seed() -> None:
     with SessionLocal() as db:
-        people = {}
-        for name in ("Tim", "Wife"):
-            person = db.scalar(select(Person).where(Person.name == name))
-            if not person:
-                person = Person(name=name, tax_residency="UK")
-                db.add(person)
-                db.flush()
-            people[name] = person
-        for owner, wrapper in (
-            ("Tim", "ISA"),
-            ("Tim", "SIPP"),
-            ("Wife", "ISA"),
-            ("Wife", "SIPP"),
-        ):
-            account_name = f"{owner} {wrapper}"
-            if not db.scalar(select(Account).where(Account.account_name == account_name)):
-                db.add(
-                    Account(
-                        provider="AJ Bell",
-                        account_name=account_name,
-                        owner_person_id=people[owner].id,
-                        wrapper_type=wrapper,
-                        currency="GBP",
-                    )
-                )
-        db.commit()
+        seed_reference_data(db)
 
 
 @asynccontextmanager
@@ -169,6 +211,7 @@ def create_account(
     owner_person_id: int = Form(...),
     wrapper_type: str = Form(...),
     aic_portfolio_url: str = Form(""),
+    tax_treatment: str = Form(""),
     db: Session = Depends(get_db),
 ):
     if db.scalar(select(Account).where(Account.account_name == account_name.strip())):
@@ -179,6 +222,7 @@ def create_account(
         owner_person_id=owner_person_id,
         wrapper_type=wrapper_type.strip().upper(),
         currency="GBP",
+        tax_treatment=tax_treatment.strip() or None,
     )
     db.add(account)
     db.flush()

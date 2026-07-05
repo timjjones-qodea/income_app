@@ -47,3 +47,6 @@ def init_db() -> None:
         if "aic_portfolio_url" not in columns:
             with engine.begin() as connection:
                 connection.execute(text("ALTER TABLE accounts ADD COLUMN aic_portfolio_url TEXT"))
+        if "tax_treatment" not in columns:
+            with engine.begin() as connection:
+                connection.execute(text("ALTER TABLE accounts ADD COLUMN tax_treatment VARCHAR(160)"))

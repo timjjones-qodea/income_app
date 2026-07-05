@@ -8,6 +8,7 @@
   {% for account in accounts %}
     <article class="aic-account">
       <strong>{{ account.account_name }}</strong><small>{{ account.owner.name }} · {{ account.wrapper_type }}</small>
+      {% if account.tax_treatment %}<small>{{ account.tax_treatment }}</small>{% endif %}
       {% if account.aic_portfolio_url %}
         <a class="button" href="{{ account.aic_portfolio_url }}" target="_blank" rel="noopener noreferrer">Open AIC portfolio ↗</a>
       {% endif %}
@@ -23,6 +24,7 @@
       <label>Account name<input name="account_name" placeholder="Tim NISA" required></label>
       <label>Owner<select name="owner_person_id">{% for person in people %}<option value="{{ person.id }}">{{ person.name }}</option>{% endfor %}</select></label>
       <label>Wrapper<select name="wrapper_type"><option>ISA</option><option>SIPP</option><option>GIA</option><option>Cash</option><option>Other</option></select></label>
+      <label>Tax treatment<input name="tax_treatment" placeholder="Optional"></label>
       <label>AIC URL (optional)<input type="url" name="aic_portfolio_url"></label>
       <button type="submit">Add account</button>
     </form>
@@ -30,10 +32,18 @@
 </section>
 <section class="panel upload-panel">
   <h2>Upload a CSV</h2>
-  <form action="/imports/upload" method="post" enctype="multipart/form-data" class="upload-form">
-    <label>File<input type="file" name="file" accept=".csv,text/csv" required></label>
-    <label>Account<select name="account_id"><option value="">Not account-specific (dividend history only)</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.account_name }} · {{ account.wrapper_type }}</option>{% endfor %}</select></label>
-    <button type="submit">Stage import</button>
+  <form action="/imports/upload" method="post" enctype="multipart/form-data" class="upload-form" id="csv-upload-form">
+    <label class="drop-zone" id="csv-drop-zone" for="csv-file" tabindex="0">
+      <input class="visually-hidden" id="csv-file" type="file" name="file" accept=".csv,text/csv" required>
+      <span class="drop-zone-icon" aria-hidden="true">⇩</span>
+      <strong>Drag your downloaded CSV here</strong>
+      <span>or click to choose a file</span>
+      <small id="csv-file-name">No file selected</small>
+    </label>
+    <div class="upload-controls">
+      <label>Account<select name="account_id"><option value="">Not account-specific (dividend history only)</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.account_name }} · {{ account.wrapper_type }}</option>{% endfor %}</select></label>
+      <button type="submit">Stage import</button>
+    </div>
   </form>
   <p class="hint">AJ Bell and AIC portfolio exports require an account. AIC dividend-event history does not.</p>
 </section>
@@ -47,4 +57,49 @@
   </tr>{% endfor %}</tbody></table></div>
   {% else %}<div class="empty">No files uploaded.</div>{% endif %}
 </section>
+<script>
+(() => {
+  const dropZone = document.getElementById("csv-drop-zone");
+  const fileInput = document.getElementById("csv-file");
+  const fileName = document.getElementById("csv-file-name");
+
+  const showSelection = () => {
+    const file = fileInput.files && fileInput.files[0];
+    fileName.textContent = file ? file.name : "No file selected";
+    dropZone.classList.toggle("has-file", Boolean(file));
+  };
+
+  ["dragenter", "dragover"].forEach((eventName) => {
+    dropZone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      dropZone.classList.add("is-dragging");
+    });
+  });
+  ["dragleave", "drop"].forEach((eventName) => {
+    dropZone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      dropZone.classList.remove("is-dragging");
+    });
+  });
+  dropZone.addEventListener("drop", (event) => {
+    const files = event.dataTransfer.files;
+    if (!files.length) return;
+    if (!files[0].name.toLowerCase().endsWith(".csv")) {
+      fileInput.value = "";
+      fileName.textContent = "Please choose a CSV file";
+      dropZone.classList.remove("has-file");
+      return;
+    }
+    fileInput.files = files;
+    showSelection();
+  });
+  dropZone.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      fileInput.click();
+    }
+  });
+  fileInput.addEventListener("change", showSelection);
+})();
+</script>
 {% endblock %}

@@ -64,7 +64,18 @@ tfoot td { font-weight: 700; background: #f8faf8; }
 .status-staged { color: #75520e; background: #fff0cf; }
 .status-duplicate, .status-amount-mismatch { color: var(--red); background: #f9e1df; }
 .upload-panel { background: #edf5f1; border-color: #cddfd6; }
-.upload-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 15px; align-items: end; }
+.upload-form { display: grid; gap: 15px; margin-top: 16px; }
+.drop-zone { min-height: 190px; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 28px; border: 2px dashed #8bb4a0; border-radius: 10px; background: rgba(255,255,255,.7); text-align: center; cursor: pointer; transition: border-color .15s, background .15s, transform .15s; }
+.drop-zone:hover, .drop-zone:focus-visible { border-color: var(--green); background: #fff; outline: none; }
+.drop-zone.is-dragging { border-color: var(--gold); background: #fff8e8; transform: scale(1.005); }
+.drop-zone.has-file { border-style: solid; border-color: var(--green); background: #fff; }
+.drop-zone-icon { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 4px; border-radius: 50%; background: var(--green-light); color: var(--green); font-size: 27px; line-height: 1; }
+.drop-zone strong { color: var(--ink); font-size: 17px; }
+.drop-zone > span:not(.drop-zone-icon) { color: var(--muted); font-weight: 500; }
+.drop-zone small { margin-top: 5px; padding: 5px 10px; border-radius: 20px; background: #edf0ee; color: var(--muted); font-weight: 650; }
+.drop-zone.has-file small { background: var(--green-light); color: var(--green); }
+.upload-controls { display: grid; grid-template-columns: 1fr auto; gap: 15px; align-items: end; }
+.visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important; }
 label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 650; }
 input, select, textarea { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #cbd6d0; border-radius: 5px; background: #fff; color: var(--ink); font: inherit; font-size: 14px; }
 textarea { min-height: 72px; resize: vertical; }
@@ -95,13 +106,13 @@ details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); fo
 .aic-account small { color: var(--muted); }
 .aic-account > .button { justify-self: start; }
 .aic-account form { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 8px; }
-.account-form { display: grid; grid-template-columns: 2fr 1fr 1fr 2fr auto; align-items: end; gap: 10px; padding-top: 15px; }
+.account-form { display: grid; grid-template-columns: 2fr 1fr 1fr 2fr 2fr auto; align-items: end; gap: 10px; padding-top: 15px; }
 @media (max-width: 900px) {
   .topbar { height: auto; padding: 16px 20px; align-items: flex-start; }
   nav { flex-wrap: wrap; justify-content: flex-end; gap: 10px 16px; }
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .grid-two, .security-grid, .aic-account-grid { grid-template-columns: 1fr; }
-  .upload-form { grid-template-columns: 1fr; }
+  .upload-controls { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
   .topbar { display: block; }

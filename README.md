@@ -63,7 +63,8 @@ Deploy:
 ./scripts/deploy.sh
 ```
 
-The deployment pulls the latest Git revision, builds and pushes the image, synchronises the production Compose/environment files to `edgepi.local`, creates the persistent data directory, and recreates the service. Override `SERVER_FQDN`, `EDGE_NETWORK_ROOT`, `EDGE_DATA_ROOT`, `GHCR_IMAGE`, or `RIE_HOSTNAME` when required.
+The deployment pulls the latest Git revision, builds and pushes the image, synchronises the production Compose/environment files to the configured EdgePi host, creates the persistent data directory, and recreates the service. Override `SERVER_FQDN`, `EDGE_NETWORK_ROOT`, `EDGE_DATA_ROOT`, `GHCR_IMAGE`, or `RIE_HOSTNAME` when required.
+`SERVER_FQDN` defaults to the `edgepi` SSH alias from the Braeside SSH configuration (currently resolving to `pi5.local`). Deployment performs a non-interactive SSH preflight before building, so hostname or key failures stop promptly.
 
 The production service does not publish a host port; Traefik is its only ingress. Before adding personal financial data, ensure `inc.braeside-host.uk` is covered by the same Cloudflare Access policy used for the private MTD application.
 
@@ -77,7 +78,7 @@ The production service does not publish a host port; Traefik is its only ingress
 6. Open **Securities** to replace the visible 4% investment-trust fallback with audited manual assumptions.
 7. Upload transactions and AIC/manual dividend history, then inspect **Income** and **Reconciliation**.
 
-Tim/Wife and one AJ Bell ISA/SIPP each are seeded as editable starter reference data. No broker credentials are used or stored.
+Tim and Wendy each have seeded AJ Bell ISA, SIPP and GIA accounts. Tim's GIA is identified as VCT-only with tax-free dividends; Wendy's is identified as an unwrapped taxable account. These labels are informational in Spike 1—tax calculations remain out of scope. No broker credentials are used or stored.
 
 ## Supported CSV shapes
 

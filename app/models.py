@@ -44,6 +44,7 @@ class Account(Base):
     owner_person_id: Mapped[int] = mapped_column(ForeignKey("people.id"))
     wrapper_type: Mapped[str] = mapped_column(String(20))
     currency: Mapped[str] = mapped_column(String(3), default="GBP")
+    tax_treatment: Mapped[str | None] = mapped_column(String(160))
     notes: Mapped[str | None] = mapped_column(Text)
     aic_portfolio_url: Mapped[str | None] = mapped_column(Text)
     owner: Mapped[Person] = relationship(back_populates="accounts")
