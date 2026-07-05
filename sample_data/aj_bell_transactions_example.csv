@@ -1,0 +1,5 @@
+Date,Type,Description,Ticker,Net Amount,Currency
+15-Jan-2025,Dividend,City of London dividend,CTY,1200.00,GBP
+28-Feb-2025,Interest,Cash interest,,45.20,GBP
+10-Apr-2025,Purchase,City of London purchase,CTY,-5000.00,GBP
+

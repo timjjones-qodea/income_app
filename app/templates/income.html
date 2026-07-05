@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Income history · Retirement Income{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Actual receipts</p><h1>Income history</h1><p>Dividend and interest transactions, allocated by payment date.</p></div><a class="button secondary" href="/reports/historic-income.csv">Export CSV</a></div>
+<section class="panel">
+  <form method="get" class="filters"><label>Calendar year<input name="calendar_year" type="number" value="{{ request.query_params.get('calendar_year','') }}"></label><label>UK tax year<input name="tax_year" placeholder="2025/26" value="{{ request.query_params.get('tax_year','') }}"></label><button>Apply filters</button><a href="/income/history">Clear</a></form>
+</section>
+<section class="panel"><div class="panel-heading"><h2>Annual summary</h2></div>
+{% if annual %}<table><thead><tr><th>Year</th><th>Person</th><th>Account</th><th class="numeric">Dividends</th><th class="numeric">Interest</th><th class="numeric">Total</th></tr></thead><tbody>
+{% for row in annual %}<tr><td>{{ row.calendar_year }}</td><td>{{ row.person }}</td><td>{{ row.account }}</td><td class="numeric">{{ row.dividends|money }}</td><td class="numeric">{{ row.interest|money }}</td><td class="numeric strong">{{ row.total|money }}</td></tr>{% endfor %}
+</tbody></table>{% else %}<div class="empty">No imported income transactions match these filters.</div>{% endif %}</section>
+<section class="panel"><div class="panel-heading"><h2>Receipt audit trail</h2></div>
+{% if rows %}<div class="table-scroll"><table><thead><tr><th>Date</th><th>Tax year</th><th>Account</th><th>Security</th><th>Type</th><th>Description</th><th class="numeric">Amount</th><th>Import</th></tr></thead><tbody>
+{% for row in rows %}<tr><td>{{ row.transaction.transaction_date.strftime("%d %b %Y") }}</td><td>{{ row.tax_year }}</td><td>{{ row.account.account_name }}</td><td>{{ row.security.ticker if row.security else "Unmatched" }}</td><td>{{ row.transaction.transaction_type }}</td><td>{{ row.transaction.description }}</td><td class="numeric">{{ row.total|money }}</td><td><a href="/imports/{{ row.transaction.source_import_id }}">#{{ row.transaction.source_import_id }}</a></td></tr>{% endfor %}
+</tbody></table></div>{% endif %}</section>
+{% endblock %}
+

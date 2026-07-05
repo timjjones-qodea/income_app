@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Imports · Retirement Income{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Source data</p><h1>Imports</h1><p>CSV files are staged and validated before anything reaches the portfolio ledger.</p></div></div>
+<section class="panel">
+  <div class="panel-heading"><div><h2>AIC portfolio exports</h2><p class="hint">Open the matching portfolio, press “Export current portfolio” on AIC, then return here and upload the CSV below.</p></div></div>
+  <div class="aic-account-grid">
+  {% for account in accounts %}
+    <article class="aic-account">
+      <strong>{{ account.account_name }}</strong><small>{{ account.owner.name }} · {{ account.wrapper_type }}</small>
+      {% if account.aic_portfolio_url %}
+        <a class="button" href="{{ account.aic_portfolio_url }}" target="_blank" rel="noopener noreferrer">Open AIC portfolio ↗</a>
+      {% endif %}
+      <form action="/accounts/{{ account.id }}/aic-url" method="post">
+        <label>AIC Income Builder URL<input type="url" name="aic_portfolio_url" value="{{ account.aic_portfolio_url or '' }}" placeholder="https://www.theaic.co.uk/income-finder/income-builder/…" required></label>
+        <button class="button secondary" type="submit">{{ "Update" if account.aic_portfolio_url else "Save URL" }}</button>
+      </form>
+    </article>
+  {% endfor %}
+  </div>
+  <details><summary>Add another AJ Bell account</summary>
+    <form action="/accounts" method="post" class="account-form">
+      <label>Account name<input name="account_name" placeholder="Tim NISA" required></label>
+      <label>Owner<select name="owner_person_id">{% for person in people %}<option value="{{ person.id }}">{{ person.name }}</option>{% endfor %}</select></label>
+      <label>Wrapper<select name="wrapper_type"><option>ISA</option><option>SIPP</option><option>GIA</option><option>Cash</option><option>Other</option></select></label>
+      <label>AIC URL (optional)<input type="url" name="aic_portfolio_url"></label>
+      <button type="submit">Add account</button>
+    </form>
+  </details>
+</section>
+<section class="panel upload-panel">
+  <h2>Upload a CSV</h2>
+  <form action="/imports/upload" method="post" enctype="multipart/form-data" class="upload-form">
+    <label>File<input type="file" name="file" accept=".csv,text/csv" required></label>
+    <label>Account<select name="account_id"><option value="">Not account-specific (dividend history only)</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.account_name }} · {{ account.wrapper_type }}</option>{% endfor %}</select></label>
+    <button type="submit">Stage import</button>
+  </form>
+  <p class="hint">AJ Bell and AIC portfolio exports require an account. AIC dividend-event history does not.</p>
+</section>
+<section class="panel">
+  <div class="panel-heading"><h2>Import history</h2></div>
+  {% if jobs %}
+  <div class="table-scroll"><table><thead><tr><th>File</th><th>Type</th><th>Account</th><th>Status</th><th class="numeric">Rows</th><th class="numeric">Warnings</th><th>Uploaded</th></tr></thead>
+  <tbody>{% for job in jobs %}<tr>
+    <td><a href="/imports/{{ job.id }}">{{ job.original_filename }}</a></td><td><code>{{ job.detected_file_type }}</code></td><td>{{ job.account.account_name if job.account else "—" }}</td>
+    <td><span class="status status-{{ job.status|lower }}">{{ job.status }}</span></td><td class="numeric">{{ job.row_count }}</td><td class="numeric">{{ job.warning_count }}</td><td>{{ job.uploaded_at.strftime("%d %b %Y %H:%M") }}</td>
+  </tr>{% endfor %}</tbody></table></div>
+  {% else %}<div class="empty">No files uploaded.</div>{% endif %}
+</section>
+{% endblock %}

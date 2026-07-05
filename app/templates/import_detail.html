@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Import {{ job.id }} · Retirement Income{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Import #{{ job.id }}</p><h1>{{ job.original_filename }}</h1><p>{{ job.detected_file_type }} · {{ job.account.account_name if job.account else "No account" }}</p></div>
+  <div class="actions">
+  {% if job.status in ["STAGED", "DUPLICATE"] %}<form action="/imports/{{ job.id }}/commit" method="post"><button {% if job.detected_file_type == "UNKNOWN" %}disabled{% endif %}>Commit clean rows</button></form>{% endif %}
+  {% if job.status == "COMMITTED" %}<form action="/imports/{{ job.id }}/rollback" method="post"><button class="button-danger">Roll back import</button></form>{% endif %}
+  </div>
+</div>
+<section class="metrics compact">
+  <article><span>Status</span><strong class="text-value">{{ job.status }}</strong></article>
+  <article><span>Rows</span><strong>{{ job.row_count }}</strong></article>
+  <article><span>Errors</span><strong>{{ job.error_count }}</strong></article>
+  <article><span>Duplicates</span><strong>{{ job.duplicate_count }}</strong></article>
+</section>
+{% if job.duplicate_of_id %}<div class="notice">This file was already committed as import <a href="/imports/{{ job.duplicate_of_id }}">#{{ job.duplicate_of_id }}</a>. Recommitting is safe and will skip duplicate rows.</div>{% endif %}
+<section class="panel">
+  <div class="panel-heading"><h2>Staged row preview</h2><span>{{ job.rows|length }} rows</span></div>
+  <div class="table-scroll"><table><thead><tr><th>Line</th><th>Normalised data</th><th>Validation</th><th>Committed</th></tr></thead>
+  <tbody>{% for row in job.rows %}<tr class="{% if row.validation_errors %}row-error{% endif %}">
+    <td>{{ row.row_number }}</td><td><code class="json">{{ row.normalized_json }}</code></td>
+    <td>{% if row.validation_errors %}<span class="error">{{ row.validation_errors }}</span>{% elif row.warnings %}<span class="warning">{{ row.warnings }}</span>{% else %}<span class="ok">Clean</span>{% endif %}</td>
+    <td>{{ "Yes" if row.committed else "No" }}</td>
+  </tr>{% endfor %}</tbody></table></div>
+</section>
+{% endblock %}
+

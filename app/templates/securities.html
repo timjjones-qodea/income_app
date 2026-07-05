@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Securities · Retirement Income{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">Reference data & overrides</p><h1>Securities</h1><p>Manual assumptions override imported dividend data and fallback yields.</p></div></div>
+{% if unmatched %}<section class="panel attention"><div class="panel-heading"><h2>Unmatched transaction descriptions</h2><a href="/reports/unmatched-securities.csv">Export</a></div>
+{% for item in unmatched %}<form action="/securities/{{ securities[0].id if securities else 0 }}/map" method="post" class="mapping-row"><input name="external_name" value="{{ item.description }}" readonly><select onchange="this.form.action='/securities/'+this.value+'/map'">{% for security in securities %}<option value="{{ security.id }}">{{ security.ticker or "—" }} · {{ security.name }}</option>{% endfor %}</select><button>Save mapping</button></form>{% endfor %}</section>{% endif %}
+<section class="security-grid">
+{% for security in securities %}
+<article class="panel security-card">
+  <div class="security-title"><div><strong>{{ security.ticker or "—" }}</strong><h2>{{ security.name }}</h2></div><span class="asset">{{ security.asset_type }}</span></div>
+  <dl><dt>ISIN</dt><dd>{{ security.isin or "Not recorded" }}</dd><dt>Sector</dt><dd>{{ security.sector or "Not recorded" }}</dd></dl>
+  {% set current = assumptions.get(security.id) %}
+  {% if current %}<div class="current-assumption"><span>Active manual assumption</span><strong>{% if current.forward_annual_dividend_per_share is not none %}{{ current.forward_annual_dividend_per_share }} per share{% else %}{{ current.forward_yield|percent }} yield{% endif %}</strong><small>{{ current.source }} · {{ current.confidence or "No confidence set" }}</small></div>{% endif %}
+  <details><summary>{{ "Edit" if current else "Add" }} income assumption</summary>
+    <form action="/securities/{{ security.id }}/assumption" method="post" class="form-stack">
+      <label>Annual dividend per share<input type="number" step="0.000001" name="forward_annual_dividend_per_share" value="{{ current.forward_annual_dividend_per_share if current and current.forward_annual_dividend_per_share is not none else '' }}"></label>
+      <label>Forward yield (%)<input type="number" step="0.01" name="forward_yield_percent" value="{{ current.forward_yield * 100 if current and current.forward_yield is not none else '' }}"></label>
+      <label>Growth assumption (%)<input type="number" step="0.01" name="dividend_growth_percent" value="{{ current.dividend_growth_rate * 100 if current and current.dividend_growth_rate is not none else '' }}"></label>
+      <div class="form-row"><label>Source<input name="source" value="{{ current.source if current else 'Manual' }}"></label><label>Confidence<select name="confidence">{% for level in ["High","Medium","Low"] %}<option {% if current and current.confidence == level %}selected{% endif %}>{{ level }}</option>{% endfor %}</select></label></div>
+      <label>Notes<textarea name="notes">{{ current.notes if current else "" }}</textarea></label><button>Save assumption</button>
+    </form>
+  </details>
+</article>
+{% else %}<div class="panel empty">No securities yet. Import holdings to build the security master.</div>{% endfor %}
+</section>
+{% endblock %}
+
