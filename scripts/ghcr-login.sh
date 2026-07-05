@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../MTD_Bookkeeper" && pwd)"
 GHCR_SECRET_DIR="${GHCR_SECRET_DIR:-$REPO_ROOT/.data/secrets/github}"
 GHCR_USER_FILE="${GHCR_USER_FILE:-$GHCR_SECRET_DIR/ghcr_username}"
 GHCR_TOKEN_FILE="${GHCR_TOKEN_FILE:-$GHCR_SECRET_DIR/ghcr_token}"
