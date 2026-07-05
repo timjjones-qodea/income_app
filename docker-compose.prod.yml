@@ -1,0 +1,33 @@
+services:
+  retirement-income:
+    image: ${RIE_IMAGE:-ghcr.io/timjjones-qodea/income-app:latest}
+    container_name: retirement-income
+    user: "${RIE_UID:-1000}:${RIE_GID:-1000}"
+    restart: unless-stopped
+    environment:
+      RIE_DATA_DIR: /app/data
+    volumes:
+      - ${EDGE_DATA_ROOT:-/mnt/ssd/edgepi/edge-data}/income/data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - edge
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=edge"
+      - "traefik.http.routers.income.rule=Host(`${RIE_HOSTNAME:-inc.braeside-host.uk}`)"
+      - "traefik.http.routers.income.entrypoints=websecure"
+      - "traefik.http.routers.income.tls=true"
+      - "traefik.http.routers.income.service=income"
+      - "traefik.http.routers.income-http.rule=Host(`${RIE_HOSTNAME:-inc.braeside-host.uk}`)"
+      - "traefik.http.routers.income-http.entrypoints=web"
+      - "traefik.http.routers.income-http.service=income"
+      - "traefik.http.services.income.loadbalancer.server.port=8000"
+
+networks:
+  edge:
+    external: true

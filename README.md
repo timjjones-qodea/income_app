@@ -24,7 +24,7 @@ Python 3.12 is recommended.
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/uvicorn app.main:app --reload --reload-dir app --port 8010
+./scripts/dev.sh
 ```
 
 Open <http://127.0.0.1:8010>. The database and uploaded source files are created under `data/`.
@@ -36,6 +36,36 @@ Or use Docker:
 ```bash
 docker compose up --build
 ```
+
+Development data is isolated under `.data/dev`; production never mounts this directory. The local helper uses the same isolation and limits file watching to application code:
+
+```bash
+./scripts/dev.sh
+```
+
+## Deploy to EdgePi
+
+Production pulls `ghcr.io/timjjones-qodea/income-app:latest`, stores persistent data under `${EDGE_DATA_ROOT}/income/data`, joins the external `edge` Docker network, and is routed by Traefik at `inc.braeside-host.uk`.
+The container defaults to UID/GID `1000:1000` so the EdgePi user owns the bind-mounted SQLite data; adjust `RIE_UID` and `RIE_GID` if that host uses different IDs.
+
+Initial setup:
+
+```bash
+cp .env.production.example .env.production
+mkdir -p .data/secrets/github
+# Add ghcr_username and ghcr_token files under .data/secrets/github
+./scripts/ghcr-login.sh
+```
+
+Deploy:
+
+```bash
+./scripts/deploy.sh
+```
+
+The deployment pulls the latest Git revision, builds and pushes the image, synchronises the production Compose/environment files to `edgepi.local`, creates the persistent data directory, and recreates the service. Override `SERVER_FQDN`, `EDGE_NETWORK_ROOT`, `EDGE_DATA_ROOT`, `GHCR_IMAGE`, or `RIE_HOSTNAME` when required.
+
+The production service does not publish a host port; Traefik is its only ingress. Before adding personal financial data, ensure `inc.braeside-host.uk` is covered by the same Cloudflare Access policy used for the private MTD application.
 
 ## First walkthrough
 
