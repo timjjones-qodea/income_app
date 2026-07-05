@@ -6,19 +6,19 @@
   <a class="button" href="/imports">Import portfolio data</a>
 </div>
 <section class="metrics">
-  <article><span>Portfolio value</span><strong>{{ metrics.portfolio_value|money }}</strong><small>Latest holdings</small></article>
-  <article><span>Forward natural income</span><strong>{{ metrics.forward_income|money }}</strong><small>{{ metrics.income_yield|percent }} portfolio yield</small></article>
-  <article><span>{{ metrics.last_calendar }} income</span><strong>{{ metrics.historic_calendar|money }}</strong><small>Calendar year, actual receipts</small></article>
-  <article><span>{{ metrics.last_tax }} income</span><strong>{{ metrics.historic_tax|money }}</strong><small>UK tax year, actual receipts</small></article>
+  <article><span>Portfolio value</span><strong>{{ metrics.portfolio_value|money }}</strong><small>Latest AJ Bell holdings</small></article>
+  <article><span>Planning income estimate</span><strong>{{ metrics.forward_income|money }}</strong><small>{{ metrics.income_yield|percent }} · AIC regular income where available</small></article>
+  <article><span>Actual income · last 12 months</span><strong>{{ metrics.trailing_income|money }}</strong><small>Dividends {{ metrics.trailing_dividends|money }} · interest {{ metrics.trailing_interest|money }}</small></article>
+  <article><span>Actual trailing yield</span><strong>{{ metrics.trailing_yield|percent }}</strong><small>{{ metrics.actual_difference|money }} versus planning estimate</small></article>
 </section>
 <div class="grid-two">
   <section class="panel">
-    <div class="panel-heading"><h2>Forward income by account</h2><a href="/reports/forward-income.csv">Export CSV</a></div>
+    <div class="panel-heading"><h2>Planning income by account</h2><a href="/reports/forward-income.csv">Export CSV</a></div>
     {% if by_account %}
     <table><thead><tr><th>Account</th><th class="numeric">Income</th></tr></thead>
       <tbody>{% for account, amount in by_account.items() %}<tr><td>{{ account }}</td><td class="numeric">{{ amount|money }}</td></tr>{% endfor %}</tbody>
     </table>
-    {% else %}<div class="empty"><strong>No holdings yet</strong><p>Import an AJ Bell portfolio CSV to begin.</p></div>{% endif %}
+    {% else %}<div class="empty"><strong>No holdings yet</strong><p>Import and commit an AJ Bell portfolio CSV first.</p></div>{% endif %}
   </section>
   <section class="panel attention">
     <h2>Data quality</h2>
@@ -28,4 +28,3 @@
   </section>
 </div>
 {% endblock %}
-

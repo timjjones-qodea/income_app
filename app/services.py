@@ -14,6 +14,7 @@ from app.config import UPLOAD_DIR
 from app.importers import (
     AIC_DIVIDEND_HISTORY,
     AIC_PORTFOLIO_INCOME,
+    AJ_BELL_CASH_STATEMENT,
     AJ_BELL_HOLDINGS,
     AJ_BELL_TRANSACTIONS,
     detect_file_type,
@@ -49,8 +50,19 @@ def create_import_job(
     except (UnicodeDecodeError, ValueError) as exc:
         raise ImportErrorDetail(str(exc)) from exc
     file_type = detect_file_type(headers)
-    if file_type in {AJ_BELL_HOLDINGS, AJ_BELL_TRANSACTIONS, AIC_PORTFOLIO_INCOME} and not account_id:
+    if file_type in {
+        AJ_BELL_CASH_STATEMENT,
+        AJ_BELL_HOLDINGS,
+        AJ_BELL_TRANSACTIONS,
+        AIC_PORTFOLIO_INCOME,
+    } and not account_id:
         raise ImportErrorDetail("Select an account for this portfolio import")
+    if file_type == AJ_BELL_CASH_STATEMENT and not db.scalar(
+        select(HoldingSnapshot.id).where(HoldingSnapshot.account_id == account_id).limit(1)
+    ):
+        raise ImportErrorDetail(
+            "Import and commit this account's AJ Bell portfolio CSV before its cash statement"
+        )
     previous = db.scalar(
         select(ImportJob)
         .where(
@@ -92,6 +104,7 @@ def count_existing_rows(db: Session, job: ImportJob) -> int:
     model = {
         AJ_BELL_HOLDINGS: HoldingSnapshot,
         AJ_BELL_TRANSACTIONS: Transaction,
+        AJ_BELL_CASH_STATEMENT: Transaction,
         AIC_PORTFOLIO_INCOME: AicPortfolioIncomeSnapshot,
     }.get(job.detected_file_type)
     if model:
@@ -140,7 +153,10 @@ def commit_import(db: Session, job: ImportJob) -> dict[str, int]:
                         source_row_hash=row.row_hash,
                     )
                 )
-            elif job.detected_file_type == AJ_BELL_TRANSACTIONS:
+            elif job.detected_file_type in {
+                AJ_BELL_CASH_STATEMENT,
+                AJ_BELL_TRANSACTIONS,
+            }:
                 duplicate = db.scalar(
                     select(Transaction.id).where(Transaction.source_row_hash == row.row_hash)
                 )
@@ -152,8 +168,15 @@ def commit_import(db: Session, job: ImportJob) -> dict[str, int]:
                     isin=data.get("isin"),
                     sedol=data.get("sedol"),
                     ticker=data.get("ticker"),
-                    name=data.get("description"),
+                    name=data.get("name") or data.get("description"),
                 )
+                if (
+                    job.detected_file_type == AJ_BELL_CASH_STATEMENT
+                    and data["transaction_type"] == "DIVIDEND"
+                    and not security
+                ):
+                    row.warnings = "Dividend security was not matched to the imported portfolio"
+                    job.warning_count += 1
                 db.add(
                     Transaction(
                         account_id=job.account_id,
@@ -351,6 +374,48 @@ def forward_income_rows(db: Session) -> list[dict]:
                     }
                 )
                 continue
+            actual_receipts = db.scalars(
+                select(Transaction).where(
+                    Transaction.account_id == holding.account_id,
+                    Transaction.security_id == security.id,
+                    Transaction.transaction_type == "DIVIDEND",
+                    Transaction.transaction_date >= date.today() - timedelta(days=365),
+                    Transaction.transaction_date <= date.today(),
+                )
+            ).all()
+            payments_with_quantity = [
+                item
+                for item in actual_receipts
+                if item.quantity is not None and Decimal(item.quantity) > 0
+            ]
+            if payments_with_quantity:
+                annual_dps = sum(
+                    (
+                        Decimal(item.net_amount) / Decimal(item.quantity)
+                        for item in payments_with_quantity
+                    ),
+                    Decimal("0"),
+                )
+                income = Decimal(holding.quantity) * annual_dps
+                source = "AJ Bell actual receipts (trailing 12 months, includes specials)"
+                assumed_yield = (
+                    income / Decimal(holding.market_value) if holding.market_value else None
+                )
+                result.append(
+                    {
+                        "holding": holding,
+                        "person": holding.account.owner,
+                        "account": holding.account,
+                        "security": security,
+                        "value": Decimal(holding.market_value),
+                        "quantity": Decimal(holding.quantity),
+                        "annual_dps": annual_dps,
+                        "assumed_yield": assumed_yield,
+                        "forward_income": income.quantize(Decimal("0.01")),
+                        "source": source,
+                    }
+                )
+                continue
             cutoff = date.today() - timedelta(days=365)
             events = db.scalars(
                 select(DividendEvent).where(
@@ -413,6 +478,14 @@ def historic_income_rows(db: Session) -> list[dict]:
                 Decimal(item.net_amount) if item.transaction_type == "INTEREST" else Decimal("0")
             ),
             "total": Decimal(item.net_amount),
+            "quantity": Decimal(item.quantity) if item.quantity is not None else None,
+            "per_share": (
+                Decimal(item.net_amount) / Decimal(item.quantity)
+                if item.transaction_type == "DIVIDEND"
+                and item.quantity is not None
+                and Decimal(item.quantity) > 0
+                else None
+            ),
         }
         for item in transactions
     ]

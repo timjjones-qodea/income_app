@@ -2,33 +2,13 @@
 {% block title %}Imports · Retirement Income{% endblock %}
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">Source data</p><h1>Imports</h1><p>CSV files are staged and validated before anything reaches the portfolio ledger.</p></div></div>
-<section class="panel">
-  <div class="panel-heading"><div><h2>AIC portfolio exports</h2><p class="hint">Open the matching portfolio, press “Export current portfolio” on AIC, then return here and upload the CSV below.</p></div></div>
-  <div class="aic-account-grid">
-  {% for account in accounts %}
-    <article class="aic-account">
-      <strong>{{ account.account_name }}</strong><small>{{ account.owner.name }} · {{ account.wrapper_type }}</small>
-      {% if account.tax_treatment %}<small>{{ account.tax_treatment }}</small>{% endif %}
-      {% if account.aic_portfolio_url %}
-        <a class="button" href="{{ account.aic_portfolio_url }}" target="_blank" rel="noopener noreferrer">Open AIC portfolio ↗</a>
-      {% endif %}
-      <form action="/accounts/{{ account.id }}/aic-url" method="post">
-        <label>AIC Income Builder URL<input type="url" name="aic_portfolio_url" value="{{ account.aic_portfolio_url or '' }}" placeholder="https://www.theaic.co.uk/income-finder/income-builder/…" required></label>
-        <button class="button secondary" type="submit">{{ "Update" if account.aic_portfolio_url else "Save URL" }}</button>
-      </form>
-    </article>
-  {% endfor %}
-  </div>
-  <details><summary>Add another AJ Bell account</summary>
-    <form action="/accounts" method="post" class="account-form">
-      <label>Account name<input name="account_name" placeholder="Tim NISA" required></label>
-      <label>Owner<select name="owner_person_id">{% for person in people %}<option value="{{ person.id }}">{{ person.name }}</option>{% endfor %}</select></label>
-      <label>Wrapper<select name="wrapper_type"><option>ISA</option><option>SIPP</option><option>GIA</option><option>Cash</option><option>Other</option></select></label>
-      <label>Tax treatment<input name="tax_treatment" placeholder="Optional"></label>
-      <label>AIC URL (optional)<input type="url" name="aic_portfolio_url"></label>
-      <button type="submit">Add account</button>
-    </form>
-  </details>
+<section class="panel workflow-panel">
+  <div class="panel-heading"><div><h2>Recommended workflow</h2><p class="hint">Complete the first two steps for each account. AIC is an optional refinement.</p></div></div>
+  <ol class="workflow-steps">
+    <li><span>1</span><div><strong>AJ Bell portfolio · required first</strong><p>Creates the current holdings, quantities, tickers and market values.</p></div></li>
+    <li><span>2</span><div><strong>AJ Bell cash statement · actual income</strong><p>Use roughly the previous 12 months. Dividends, interest and payment-time quantities populate Income history.</p></div></li>
+    <li><span>3</span><div><strong>AIC portfolio · optional planning baseline</strong><p>Adds regular trailing income and helps keep special dividends out of the repeatable estimate.</p></div></li>
+  </ol>
 </section>
 <section class="panel upload-panel">
   <h2>Upload a CSV</h2>
@@ -45,7 +25,35 @@
       <button type="submit">Stage import</button>
     </div>
   </form>
-  <p class="hint">AJ Bell and AIC portfolio exports require an account. AIC dividend-event history does not.</p>
+  <p class="hint">AJ Bell portfolio, AJ Bell cash statement and AIC portfolio files require an account. The app will reject a cash statement until that account's portfolio has been committed.</p>
+</section>
+<section class="panel">
+  <div class="panel-heading"><div><h2>Optional AIC planning data</h2><p class="hint">Open the matching portfolio, press “Export current portfolio” on AIC, then upload it above.</p></div></div>
+  <div class="aic-account-grid">
+    {% for account in accounts %}
+      <article class="aic-account">
+        <strong>{{ account.account_name }}</strong><small>{{ account.owner.name }} · {{ account.wrapper_type }}</small>
+        {% if account.tax_treatment %}<small>{{ account.tax_treatment }}</small>{% endif %}
+        {% if account.aic_portfolio_url %}
+          <a class="button" href="{{ account.aic_portfolio_url }}" target="_blank" rel="noopener noreferrer">Open AIC portfolio ↗</a>
+        {% endif %}
+        <form action="/accounts/{{ account.id }}/aic-url" method="post">
+          <label>AIC Income Builder URL<input type="url" name="aic_portfolio_url" value="{{ account.aic_portfolio_url or '' }}" placeholder="https://www.theaic.co.uk/income-finder/income-builder/…" required></label>
+          <button class="button secondary" type="submit">{{ "Update" if account.aic_portfolio_url else "Save URL" }}</button>
+        </form>
+      </article>
+    {% endfor %}
+  </div>
+  <details><summary>Add another AJ Bell account</summary>
+    <form action="/accounts" method="post" class="account-form">
+      <label>Account name<input name="account_name" placeholder="Tim NISA" required></label>
+      <label>Owner<select name="owner_person_id">{% for person in people %}<option value="{{ person.id }}">{{ person.name }}</option>{% endfor %}</select></label>
+      <label>Wrapper<select name="wrapper_type"><option>ISA</option><option>SIPP</option><option>GIA</option><option>Cash</option><option>Other</option></select></label>
+      <label>Tax treatment<input name="tax_treatment" placeholder="Optional"></label>
+      <label>AIC URL (optional)<input type="url" name="aic_portfolio_url"></label>
+      <button type="submit">Add account</button>
+    </form>
+  </details>
 </section>
 <section class="panel">
   <div class="panel-heading"><h2>Import history</h2></div>

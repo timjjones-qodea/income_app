@@ -13,6 +13,7 @@ from typing import Any
 
 AJ_BELL_HOLDINGS = "AJ_BELL_HOLDINGS"
 AJ_BELL_TRANSACTIONS = "AJ_BELL_TRANSACTIONS"
+AJ_BELL_CASH_STATEMENT = "AJ_BELL_CASH_STATEMENT"
 AIC_DIVIDEND_HISTORY = "AIC_DIVIDEND_HISTORY"
 AIC_PORTFOLIO_INCOME = "AIC_PORTFOLIO_INCOME"
 UNKNOWN = "UNKNOWN"
@@ -55,6 +56,14 @@ def detect_file_type(headers: list[str]) -> str:
         "value_gbp" in columns or "value" in columns
     ):
         return AJ_BELL_HOLDINGS
+    if {
+        "date",
+        "description",
+        "receipt_gbp",
+        "payment_gbp",
+        "balance_gbp",
+    }.issubset(columns):
+        return AJ_BELL_CASH_STATEMENT
     if (
         {"payment_date", "dividend_per_share"}.issubset(columns)
         or {"pay_date", "dividend_amount_per_share"}.issubset(columns)
@@ -118,6 +127,10 @@ def parse_date(value: str, *, required: bool = False):
 def normalize_name(value: str) -> str:
     value = value.upper()
     value = re.sub(r"\(LSE:[^)]+\)", "", value)
+    value = re.sub(r"\bINC\b", "INCOME", value)
+    value = re.sub(r"\bGRWT\b", "GROWTH", value)
+    value = re.sub(r"\bINV\b", "INVESTMENT", value)
+    value = re.sub(r"\bVCT\s+([0-9]+)\b", r"VCT\1", value)
     value = re.sub(r"\b(PLC|LIMITED|LTD|ORDINARY|ORD|INVESTMENT|TRUST)\b", "", value)
     return re.sub(r"[^A-Z0-9]+", " ", value).strip()
 
@@ -251,6 +264,73 @@ def normalize_transaction(row: dict[str, str]) -> tuple[dict[str, Any], list[str
     return normalized, errors, warnings
 
 
+def cash_dividend_details(description: str) -> tuple[Decimal | None, str | None]:
+    match = re.match(r"^Dividend\s+([\d,]+)\s+(.+)$", description.strip(), re.IGNORECASE)
+    if not match:
+        return None, None
+    quantity = parse_decimal(match.group(1))
+    security_name = re.sub(
+        r"\s+(?:ORD\s+)?GBP[\d.]+\s*$",
+        "",
+        match.group(2),
+        flags=re.IGNORECASE,
+    ).strip()
+    return quantity, security_name or None
+
+
+def normalize_cash_statement(
+    row: dict[str, str],
+) -> tuple[dict[str, Any], list[str], list[str]]:
+    errors: list[str] = []
+    warnings: list[str] = []
+    description = first(row, "description")
+    try:
+        transaction_date = parse_date(first(row, "date"), required=True)
+    except ValueError as exc:
+        transaction_date = None
+        errors.append(str(exc))
+
+    try:
+        receipt = parse_decimal(first(row, "receipt_gbp")) or Decimal("0")
+        payment = parse_decimal(first(row, "payment_gbp")) or Decimal("0")
+        net_amount = receipt + (payment if payment <= 0 else -payment)
+    except ValueError as exc:
+        receipt = payment = net_amount = Decimal("0")
+        errors.append(str(exc))
+
+    transaction_type = classify_transaction("", description)
+    quantity, security_name = cash_dividend_details(description)
+    if transaction_type == "DIVIDEND" and not security_name:
+        warnings.append("Could not extract the security name from this dividend")
+
+    settlement_text = first(row, "settlement_date")
+    settlement_date = None
+    if settlement_text and settlement_text != "-":
+        try:
+            settlement_date = parse_date(settlement_text)
+        except ValueError as exc:
+            errors.append(str(exc))
+
+    normalized = {
+        "transaction_date": transaction_date.isoformat() if transaction_date else None,
+        "settlement_date": settlement_date.isoformat() if settlement_date else None,
+        "transaction_type": transaction_type,
+        "description": description,
+        "name": security_name,
+        "ticker": None,
+        "isin": None,
+        "sedol": None,
+        "quantity": str(quantity) if quantity is not None else None,
+        "price": None,
+        "gross_amount": str(receipt) if receipt else None,
+        "fees": str(-net_amount if transaction_type == "FEE" and net_amount < 0 else 0),
+        "tax": "0",
+        "net_amount": str(net_amount),
+        "currency": "GBP",
+    }
+    return normalized, errors, warnings
+
+
 def normalize_dividend(row: dict[str, str]) -> tuple[dict[str, Any], list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
@@ -317,6 +397,7 @@ def normalize_aic_portfolio(row: dict[str, str]) -> tuple[dict[str, Any], list[s
 NORMALIZERS = {
     AJ_BELL_HOLDINGS: normalize_holding,
     AJ_BELL_TRANSACTIONS: normalize_transaction,
+    AJ_BELL_CASH_STATEMENT: normalize_cash_statement,
     AIC_DIVIDEND_HISTORY: normalize_dividend,
     AIC_PORTFOLIO_INCOME: normalize_aic_portfolio,
 }

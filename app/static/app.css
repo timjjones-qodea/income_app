@@ -64,6 +64,12 @@ tfoot td { font-weight: 700; background: #f8faf8; }
 .status-staged { color: #75520e; background: #fff0cf; }
 .status-duplicate, .status-amount-mismatch { color: var(--red); background: #f9e1df; }
 .upload-panel { background: #edf5f1; border-color: #cddfd6; }
+.workflow-panel { border-top: 3px solid var(--green); }
+.workflow-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 0; padding: 0; list-style: none; }
+.workflow-steps li { display: flex; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: #fbfdfb; }
+.workflow-steps li > span { flex: 0 0 30px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--green); color: #fff; font-weight: 750; }
+.workflow-steps strong { display: block; margin: 5px 0 6px; }
+.workflow-steps p { margin: 0; font-size: 13px; }
 .upload-form { display: grid; gap: 15px; margin-top: 16px; }
 .drop-zone { min-height: 190px; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 28px; border: 2px dashed #8bb4a0; border-radius: 10px; background: rgba(255,255,255,.7); text-align: center; cursor: pointer; transition: border-color .15s, background .15s, transform .15s; }
 .drop-zone:hover, .drop-zone:focus-visible { border-color: var(--green); background: #fff; outline: none; }
@@ -111,7 +117,7 @@ details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); fo
   .topbar { height: auto; padding: 16px 20px; align-items: flex-start; }
   nav { flex-wrap: wrap; justify-content: flex-end; gap: 10px 16px; }
   .metrics { grid-template-columns: repeat(2, 1fr); }
-  .grid-two, .security-grid, .aic-account-grid { grid-template-columns: 1fr; }
+  .grid-two, .security-grid, .aic-account-grid, .workflow-steps { grid-template-columns: 1fr; }
   .upload-controls { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {

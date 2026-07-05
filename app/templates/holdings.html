@@ -7,6 +7,6 @@
 <div class="table-scroll"><table><thead><tr><th>Person</th><th>Account</th><th>Security</th><th class="numeric">Quantity</th><th class="numeric">Value</th><th class="numeric">Yield</th><th class="numeric">Forward income</th><th>Source</th></tr></thead>
 <tbody>{% for row in rows %}<tr><td>{{ row.person.name }}</td><td>{{ row.account.account_name }}<small class="block">{{ row.account.wrapper_type }}</small>{% if row.account.tax_treatment %}<small class="block">{{ row.account.tax_treatment }}</small>{% endif %}</td><td><strong>{{ row.security.ticker or "—" }}</strong><small class="block">{{ row.security.name }}</small></td><td class="numeric">{{ "{:,.2f}".format(row.quantity) }}</td><td class="numeric">{{ row.value|money }}</td><td class="numeric">{{ row.assumed_yield|percent }}</td><td class="numeric strong">{{ row.forward_income|money }}</td><td><span class="source">{{ row.source }}</span></td></tr>{% endfor %}</tbody>
 <tfoot><tr><td colspan="4">Total</td><td class="numeric">{{ total_value|default(0)|money }}</td><td></td><td class="numeric">{{ total_income|default(0)|money }}</td><td></td></tr></tfoot></table></div>
-{% else %}<div class="empty"><strong>No holdings to show</strong><p>Commit an AJ Bell holdings import first.</p></div>{% endif %}
+{% else %}<div class="empty"><strong>No holdings to show</strong><p>Import and commit an AJ Bell portfolio CSV first, then add its cash statement.</p></div>{% endif %}
 </section>
 {% endblock %}

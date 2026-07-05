@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import io
 from contextlib import asynccontextmanager
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from urllib.parse import urlparse
 
@@ -183,6 +183,15 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     last_tax = f"{current_tax_start - 1}/{str(current_tax_start)[-2:]}"
     value = sum((Decimal(item.market_value) for item in holdings), Decimal("0"))
     forward_total = sum((item["forward_income"] for item in forward), Decimal("0"))
+    trailing_cutoff = date.today() - timedelta(days=365)
+    trailing = [
+        item
+        for item in historic
+        if trailing_cutoff <= item["transaction"].transaction_date <= date.today()
+    ]
+    trailing_dividends = sum((item["dividends"] for item in trailing), Decimal("0"))
+    trailing_interest = sum((item["interest"] for item in trailing), Decimal("0"))
+    trailing_total = trailing_dividends + trailing_interest
     metrics = {
         "portfolio_value": value,
         "historic_calendar": sum(
@@ -194,6 +203,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         ),
         "forward_income": forward_total,
         "income_yield": forward_total / value if value else Decimal("0"),
+        "trailing_income": trailing_total,
+        "trailing_dividends": trailing_dividends,
+        "trailing_interest": trailing_interest,
+        "trailing_yield": trailing_total / value if value else Decimal("0"),
+        "actual_difference": trailing_total - forward_total,
         "unmatched": int(
             db.scalar(
                 select(func.count()).select_from(Transaction).where(

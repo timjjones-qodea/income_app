@@ -14,6 +14,15 @@
   <article><span>Duplicates</span><strong>{{ job.duplicate_count }}</strong></article>
 </section>
 {% if job.duplicate_of_id %}<div class="notice">This file was already committed as import <a href="/imports/{{ job.duplicate_of_id }}">#{{ job.duplicate_of_id }}</a>. Recommitting is safe and will skip duplicate rows.</div>{% endif %}
+{% if job.status == "COMMITTED" and not job.duplicate_of_id %}
+  {% if job.detected_file_type == "AJ_BELL_HOLDINGS" %}
+    <div class="notice"><strong>Holdings loaded.</strong> Next, upload this account's AJ Bell cash statement for approximately the previous 12 months.</div>
+  {% elif job.detected_file_type == "AJ_BELL_CASH_STATEMENT" %}
+    <div class="notice"><strong>Actual income loaded.</strong> Income history now includes dated dividends and interest. An AIC export is optional and will refine the regular planning estimate.</div>
+  {% elif job.detected_file_type == "AIC_PORTFOLIO_INCOME" %}
+    <div class="notice"><strong>Planning baseline loaded.</strong> AIC regular trailing income now takes priority over actual receipts when estimating repeatable income.</div>
+  {% endif %}
+{% endif %}
 <section class="panel">
   <div class="panel-heading"><h2>Staged row preview</h2><span>{{ job.rows|length }} rows</span></div>
   <div class="table-scroll"><table><thead><tr><th>Line</th><th>Normalised data</th><th>Validation</th><th>Committed</th></tr></thead>
@@ -24,4 +33,3 @@
   </tr>{% endfor %}</tbody></table></div>
 </section>
 {% endblock %}
-

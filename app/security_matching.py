@@ -57,6 +57,11 @@ def create_or_match_security(db: Session, data: dict, *, source: str = "AJ Bell"
         source=source,
     )
     if security:
+        for field in ("ticker", "isin", "sedol", "exchange"):
+            if not getattr(security, field) and data.get(field):
+                setattr(security, field, data[field])
+        if security.asset_type == "Other" and data.get("asset_type"):
+            security.asset_type = data["asset_type"]
         return security
     name = data.get("name") or data.get("ticker") or data.get("isin") or "Unknown security"
     security = Security(
@@ -98,4 +103,3 @@ def save_manual_mapping(db: Session, external_name: str, security_id: int, sourc
         db.add(alias)
     db.flush()
     return alias
-
