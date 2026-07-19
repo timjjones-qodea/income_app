@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Help · Retirement Income{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Guide</p>
+    <h1>How to use Retirement Income</h1>
+    <p>The app builds a household natural-income view from real AJ Bell holdings, actual cash receipts and optional AIC planning data.</p>
+  </div>
+  <a class="button" href="/imports">Start importing</a>
+</div>
+
+<section class="panel help-panel">
+  <div>
+    <h2>The job of the app</h2>
+    <p>Use it to see what Wendy and Tim actually hold, what dividend and interest income those holdings produced, which wrapper the income landed in, and what looks repeatable for retirement planning.</p>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-heading"><h2>The workflow</h2></div>
+  <ol class="workflow-steps">
+    <li><span>1</span><div><strong>Import AJ Bell portfolio</strong><p>Required first. This creates current holdings, quantities, tickers and market values.</p></div></li>
+    <li><span>2</span><div><strong>Import AJ Bell cash statement</strong><p>Required for actual income. Use roughly the previous 12 months for each account.</p></div></li>
+    <li><span>3</span><div><strong>Optionally import AIC</strong><p>Use the AIC Income Builder export as the repeatable investment-trust income baseline.</p></div></li>
+  </ol>
+</section>
+
+<section class="panel">
+  <div class="panel-heading"><h2>What each page is for</h2></div>
+  <div class="definition-grid">
+    <article><strong>Dashboard</strong><p>Household overview: portfolio value, actual trailing income, planning income and data quality warnings.</p></article>
+    <article><strong>Imports</strong><p>Stage, validate, commit and roll back CSV files. Start here for every data refresh.</p></article>
+    <article><strong>Holdings</strong><p>Current holdings and planning income. The Source column explains where each estimate came from.</p></article>
+    <article><strong>Income</strong><p>Actual dividend and interest receipts from AJ Bell cash statements, grouped by calendar and UK tax year.</p></article>
+    <article><strong>Securities</strong><p>Security master data, unmatched row mapping and manual income assumptions.</p></article>
+    <article><strong>Reconciliation</strong><p>Control page comparing actual receipts with imported dividend-event data where available.</p></article>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-heading"><h2>Income and tax interpretation</h2></div>
+  <table>
+    <thead><tr><th>Account</th><th>Wrapper</th><th>Planning interpretation</th></tr></thead>
+    <tbody>
+      {% for account in accounts %}
+      <tr><td>{{ account.account_name }}</td><td>{{ account.wrapper_type }}</td><td>{{ account.tax_treatment or "Not set" }}{% if account.notes %}<small class="block">{{ account.notes }}</small>{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="hint">These labels are currently guidance, not a tax calculation. A future build slice will add taxable-income and allowance modelling.</p>
+</section>
+
+<section class="panel">
+  <div class="panel-heading"><h2>Planning income priority</h2></div>
+  <ol class="priority-list">
+    <li>Manual annual dividend per share.</li>
+    <li>Manual forward yield.</li>
+    <li>AIC Income Builder portfolio export.</li>
+    <li>AJ Bell actual trailing-12-month receipts, including specials.</li>
+    <li>Imported dividend events.</li>
+    <li>Asset-type fallback yield.</li>
+  </ol>
+  <p class="hint">If a holding is using fallback yield, treat the number as a placeholder and add better data when available.</p>
+</section>
+
+<section class="panel attention">
+  <div class="panel-heading"><h2>Practical refresh cadence</h2></div>
+  <ul class="plain-list">
+    <li><strong>Monthly or after trades:</strong> refresh AJ Bell portfolio CSVs.</li>
+    <li><strong>Monthly or quarterly:</strong> refresh AJ Bell cash statements.</li>
+    <li><strong>Monthly or quarterly:</strong> refresh AIC exports for covered investment-trust portfolios.</li>
+    <li><strong>Annually:</strong> export income reports for tax-year review.</li>
+  </ul>
+</section>
+{% endblock %}

@@ -47,6 +47,16 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .metrics .text-value { font-family: inherit; font-size: 20px; }
 .grid-two { display: grid; grid-template-columns: 2fr 1fr; gap: 22px; }
 .attention { border-top: 3px solid var(--gold); }
+.help-panel { display: flex; align-items: flex-start; justify-content: space-between; gap: 22px; border-left: 4px solid var(--green); background: linear-gradient(90deg, #f7fbf8, #fff); }
+.help-panel h2 { margin-bottom: 8px; }
+.help-panel p { margin: 0; max-width: 880px; }
+.compact-steps { margin: 0; padding-left: 20px; min-width: 280px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.plain-list { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.65; }
+.plain-list li + li { margin-top: 4px; }
+.definition-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.definition-grid article { padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: #fbfdfb; }
+.definition-grid article p { margin: 7px 0 0; font-size: 13px; }
+.priority-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 24px; margin: 0 0 16px; padding-left: 20px; color: var(--muted); line-height: 1.5; }
 .quality-row { display: flex; justify-content: space-between; padding: 17px 0; border-bottom: 1px solid var(--line); }
 .quality-row strong { color: var(--gold); font-size: 21px; }
 .muted, .hint { color: var(--muted); font-size: 13px; }
@@ -117,7 +127,9 @@ details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); fo
   .topbar { height: auto; padding: 16px 20px; align-items: flex-start; }
   nav { flex-wrap: wrap; justify-content: flex-end; gap: 10px 16px; }
   .metrics { grid-template-columns: repeat(2, 1fr); }
-  .grid-two, .security-grid, .aic-account-grid, .workflow-steps { grid-template-columns: 1fr; }
+  .grid-two, .security-grid, .aic-account-grid, .workflow-steps, .definition-grid, .priority-list { grid-template-columns: 1fr; }
+  .help-panel { display: block; }
+  .compact-steps { margin-top: 14px; }
   .upload-controls { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {

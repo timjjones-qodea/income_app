@@ -2,6 +2,17 @@
 {% block title %}Securities · Retirement Income{% endblock %}
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">Reference data & overrides</p><h1>Securities</h1><p>Manual assumptions override imported dividend data and fallback yields.</p></div></div>
+<section class="panel help-panel">
+  <div>
+    <h2>When to use this page</h2>
+    <p>Use Securities when an income row did not match a holding, or when the automatic planning source is not the right basis for the future. Manual dividend-per-share and manual yield assumptions take top priority in Holdings.</p>
+  </div>
+  <ul class="plain-list">
+    <li>Map unmatched AJ Bell descriptions to the correct security.</li>
+    <li>Add manual assumptions for securities outside AIC coverage.</li>
+    <li>Override stale or distorted income data.</li>
+  </ul>
+</section>
 {% if unmatched %}<section class="panel attention"><div class="panel-heading"><h2>Unmatched transaction descriptions</h2><a href="/reports/unmatched-securities.csv">Export</a></div>
 {% for item in unmatched %}<form action="/securities/{{ securities[0].id if securities else 0 }}/map" method="post" class="mapping-row"><input name="external_name" value="{{ item.description }}" readonly><select onchange="this.form.action='/securities/'+this.value+'/map'">{% for security in securities %}<option value="{{ security.id }}">{{ security.ticker or "—" }} · {{ security.name }}</option>{% endfor %}</select><button>Save mapping</button></form>{% endfor %}</section>{% endif %}
 <section class="security-grid">
@@ -24,4 +35,3 @@
 {% else %}<div class="panel empty">No securities yet. Import holdings to build the security master.</div>{% endfor %}
 </section>
 {% endblock %}
-

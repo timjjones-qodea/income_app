@@ -2,6 +2,17 @@
 {% block title %}Holdings · Retirement Income{% endblock %}
 {% block content %}
 <div class="page-heading"><div><p class="eyebrow">Latest snapshots</p><h1>{{ title or "Holdings & forward income" }}</h1><p>Current quantities paired with the highest-priority available income assumption.</p></div><a class="button secondary" href="/reports/forward-income.csv">Export CSV</a></div>
+<section class="panel help-panel">
+  <div>
+    <h2>What this page tells you</h2>
+    <p>This is the planning view: current AJ Bell quantities multiplied by the best available income assumption. The Source column is important. AIC and manual assumptions are usually better planning inputs than raw trailing receipts if special dividends were paid.</p>
+  </div>
+  <ul class="plain-list">
+    <li><strong>ISA:</strong> tax-free income.</li>
+    <li><strong>SIPP:</strong> pension-wrapped income; withdrawals are the taxable event.</li>
+    <li><strong>GIA:</strong> Tim’s VCT GIA is treated as tax-free; Wendy’s GIA is unwrapped taxable income.</li>
+  </ul>
+</section>
 <section class="panel">
 {% if rows %}
 <div class="table-scroll"><table><thead><tr><th>Person</th><th>Account</th><th>Security</th><th class="numeric">Quantity</th><th class="numeric">Value</th><th class="numeric">Yield</th><th class="numeric">Forward income</th><th>Source</th></tr></thead>

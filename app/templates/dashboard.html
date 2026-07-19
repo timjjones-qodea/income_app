@@ -2,9 +2,20 @@
 {% block title %}Dashboard · Retirement Income{% endblock %}
 {% block content %}
 <div class="page-heading">
-  <div><p class="eyebrow">Portfolio overview</p><h1>Natural income dashboard</h1></div>
+  <div><p class="eyebrow">Portfolio overview</p><h1>Natural income dashboard</h1><p>Bring together AJ Bell holdings, actual receipts and optional AIC regular-income data to understand household natural income.</p></div>
   <a class="button" href="/imports">Import portfolio data</a>
 </div>
+<section class="panel help-panel">
+  <div>
+    <h2>How to read this page</h2>
+    <p>The dashboard separates two useful numbers: actual income received in the last 12 months, and planning income for current holdings. Planning income prefers AIC regular income where available so one-off special dividends do not quietly become “expected” income.</p>
+  </div>
+  <ol class="compact-steps">
+    <li>Load AJ Bell portfolio CSVs for current holdings.</li>
+    <li>Load AJ Bell cash statements for actual dividends and interest.</li>
+    <li>Add AIC exports or manual assumptions to refine repeatable income.</li>
+  </ol>
+</section>
 <section class="metrics">
   <article><span>Portfolio value</span><strong>{{ metrics.portfolio_value|money }}</strong><small>Latest AJ Bell holdings</small></article>
   <article><span>Planning income estimate</span><strong>{{ metrics.forward_income|money }}</strong><small>{{ metrics.income_yield|percent }} · AIC regular income where available</small></article>

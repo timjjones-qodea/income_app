@@ -1,21 +1,83 @@
-# Retirement Income Engine
+# Retirement Income
 
-Spike 1 is a local-first FastAPI application for tracing natural investment income across a couple's AJ Bell SIPPs and ISAs. It separates broker imports, market dividend data, manual assumptions, and calculated output.
+Local-first income planning for Tim and Wendy’s AJ Bell portfolios.
 
-## What this spike proves
+The app brings together current holdings, actual dividend and interest receipts, and optional AIC Income Builder data so we can answer the practical retirement question: “what natural income are these portfolios really producing, and how much of it is taxable?”
 
-- Stages AJ Bell holdings and transaction CSV files before commit.
-- Detects holdings, transactions, and AIC-style dividend history from headers.
-- Normalises dates, money, transaction types, tickers, names, and stable row hashes.
-- Makes repeated file and row imports idempotent.
-- Matches securities by ISIN, SEDOL, ticker, normalised name, then saved manual aliases.
-- Calculates actual dividend and interest income by calendar and UK tax year.
-- Calculates forward income using manual dividend/share, manual yield, trailing dividend events, then an explicit asset-type fallback.
-- Reconciles actual receipts to dividend events with visible tolerances.
-- Exports historic income by year/account/security, forward income, unmatched rows, and reconciliation as CSV.
-- Preserves import-to-calculation traceability and supports import rollback.
+It is analysis software, not financial advice. It does not trade, optimise, recommend purchases, log in to AJ Bell, or scrape the AIC website.
 
-This is analysis software, not financial advice. It deliberately excludes tax, crystallisation, withdrawal strategy, State Pension, Monte Carlo modelling, trading, and broker login.
+## Current purpose
+
+The useful centre of gravity is deliberately simple:
+
+1. Load each AJ Bell portfolio CSV to establish current holdings, quantities and market value.
+2. Load each AJ Bell cash statement for the prior year to establish actual dividend and interest receipts.
+3. Optionally load the matching AIC Income Builder export to create a cleaner planning baseline for investment trusts, because the AIC figure helps distinguish repeatable regular income from special dividends.
+4. Review income by person, account wrapper, security and tax treatment.
+5. Use the result as the base for broader retirement income projections.
+
+The seeded accounts are:
+
+| Person | Account | Tax interpretation used by the app |
+| --- | --- | --- |
+| Tim | ISA | Tax-free ISA income |
+| Tim | SIPP | Pension wrapper; taxable when withdrawn, not while held |
+| Tim | GIA | VCT-only general investment account; dividends treated as tax-free |
+| Wendy | ISA | Tax-free ISA income |
+| Wendy | SIPP | Pension wrapper; taxable when withdrawn, not while held |
+| Wendy | GIA | Unwrapped taxable investment account |
+
+Tax labels are currently descriptive. Detailed tax calculation is a planned build slice.
+
+## What works now
+
+- FastAPI web app with local SQLite storage.
+- Separate development and production data directories.
+- Docker and EdgePi deployment via GHCR, following the MTD Bookkeeper pattern.
+- Traefik-ready production compose labels for `inc.braeside-host.uk`.
+- Seeded Tim/Wendy AJ Bell accounts and saved AIC Income Builder URLs.
+- CSV staging before commit, with row-level validation and duplicate safety.
+- Import rollback for committed files.
+- AJ Bell portfolio import for current holdings.
+- AJ Bell cash statement import for actual dividends, interest, charges and cash movements.
+- AIC Income Builder portfolio import for trailing regular income planning.
+- Older generic AJ Bell transaction and dividend-event imports retained for compatibility.
+- Security matching by ISIN, SEDOL, ticker, normalised name and manual alias.
+- Security assumptions for manual dividend-per-share or yield overrides.
+- Dashboard metrics for portfolio value, planning income and actual trailing income.
+- Holdings view showing current holdings paired with the highest-priority income source.
+- Income history view showing actual receipts by calendar year and UK tax year.
+- Securities view for unmatched rows and manual income assumptions.
+- Reconciliation view comparing actual dividends with dividend events when those events exist.
+- CSV reports for income, holdings/planning income, unmatched rows and reconciliation.
+
+## Data-source priority
+
+Forward or planning income is calculated per current holding using this priority order:
+
+1. Manual annual dividend per share.
+2. Manual forward yield.
+3. AIC Income Builder portfolio export for that account/security.
+4. AJ Bell actual dividend receipts over the trailing 12 months, including specials.
+5. Imported dividend events over the trailing 12 months.
+6. Asset-type fallback yield.
+
+This means AIC data is optional but useful. If loaded, it deliberately replaces the “actual receipts including specials” basis for planning, because a large special dividend should not usually be treated as repeatable retirement income.
+
+## Recommended workflow
+
+Repeat this for each account: Tim ISA, Tim SIPP, Tim GIA, Wendy ISA, Wendy SIPP and Wendy GIA.
+
+1. In AJ Bell, export the current portfolio CSV for the account.
+2. In the app, open **Imports**, choose the same account, drag the portfolio CSV into the upload panel, stage it, review the rows and commit it.
+3. In AJ Bell, export/download the cash statement covering roughly the previous 12 months.
+4. In the app, choose the same account, upload the cash statement, stage it, review it and commit it.
+5. Open **Income** to confirm dated dividends and interest have appeared.
+6. Open **Holdings** to confirm current quantities and forward/planning income.
+7. If the account contains AIC-covered investment trusts, open the matching AIC portfolio from **Imports**, press **Export current portfolio** on the AIC site, then upload that CSV against the same account.
+8. Open **Securities** to resolve any unmatched income rows or add manual assumptions where AIC/AJ Bell data is not a good planning basis.
+
+For the most reliable projections, refresh AJ Bell holdings monthly or after any purchase, sale or transfer. Refresh cash statements monthly or quarterly. Refresh AIC Income Builder exports monthly if using them as the planning baseline.
 
 ## Run locally
 
@@ -27,26 +89,21 @@ python3 -m venv .venv
 ./scripts/dev.sh
 ```
 
-Open <http://127.0.0.1:8010>. The database and uploaded source files are created under `data/`.
+Open <http://127.0.0.1:8010>.
 
-Restricting reloads to `app/` is important because the virtual environment lives inside the project directory. Without `--reload-dir app`, package installation or delayed iCloud file events under `.venv/` can trigger a restart loop.
+The database and uploaded source files are created under `.data/dev/` when using `scripts/dev.sh`.
 
-Or use Docker:
+The development script restricts Uvicorn reloads to `app/`. This matters because the virtual environment may live inside the project directory; without `--reload-dir app`, package installs or delayed iCloud file events under `.venv/` can trigger a restart loop.
+
+Docker is also available:
 
 ```bash
 docker compose up --build
 ```
 
-Development data is isolated under `.data/dev`; production never mounts this directory. The local helper uses the same isolation and limits file watching to application code:
-
-```bash
-./scripts/dev.sh
-```
-
 ## Deploy to EdgePi
 
 Production pulls `ghcr.io/timjjones-qodea/income-app:latest`, stores persistent data under `${EDGE_DATA_ROOT}/income/data`, joins the external `edge` Docker network, and is routed by Traefik at `inc.braeside-host.uk`.
-The container defaults to UID/GID `1000:1000` so the EdgePi user owns the bind-mounted SQLite data; adjust `RIE_UID` and `RIE_GID` if that host uses different IDs.
 
 Initial setup:
 
@@ -63,42 +120,43 @@ Deploy:
 ./scripts/deploy.sh
 ```
 
-The deployment pulls the latest Git revision, builds and pushes the image, synchronises the production Compose/environment files to the configured EdgePi host, creates the persistent data directory, and recreates the service. Override `SERVER_FQDN`, `EDGE_NETWORK_ROOT`, `EDGE_DATA_ROOT`, `GHCR_IMAGE`, or `RIE_HOSTNAME` when required.
-`SERVER_FQDN` defaults to the `edgepi` SSH alias from the Braeside SSH configuration (currently resolving to `pi5.local`). Deployment performs a non-interactive SSH preflight before building, so hostname or key failures stop promptly.
+The deployment script validates production Compose, pulls the latest source, builds and pushes the GHCR image, prepares the EdgePi data directory, synchronises production files and recreates the service.
 
-The production service does not publish a host port; Traefik is its only ingress. Before adding personal financial data, ensure `inc.braeside-host.uk` is covered by the same Cloudflare Access policy used for the private MTD application.
+Before adding personal financial data, ensure `inc.braeside-host.uk` is protected by Cloudflare Access or equivalent private access controls.
 
-## First walkthrough
+## Supported CSV files
 
-1. Open **Imports**.
-2. Save each account's AIC Income Builder URL. Use **Open AIC portfolio**, press AIC's **Export current portfolio** button, then return to the app.
-3. Select the intended account and upload either its AIC export or AJ Bell holdings CSV (the portfolio label `ISA` cannot identify its owner).
-4. Review the normalised rows and commit the clean rows.
-5. Open **Holdings** to see values and forward estimates.
-6. Open **Securities** to replace the visible 4% investment-trust fallback with audited manual assumptions.
-7. Upload transactions and AIC/manual dividend history, then inspect **Income** and **Reconciliation**.
+Headers are case/punctuation tolerant.
 
-Tim and Wendy each have seeded AJ Bell ISA, SIPP and GIA accounts. Tim's GIA is identified as VCT-only with tax-free dividends; Wendy's is identified as an unwrapped taxable account. These labels are informational in Spike 1—tax calculations remain out of scope. No broker credentials are used or stored.
+| Source | Purpose | Key columns |
+| --- | --- | --- |
+| AJ Bell portfolio | Current holdings and market value | `Investment`, `Quantity`, `Price`, `Value (£)`, `Date`, `Ticker` |
+| AJ Bell cash statement | Actual receipts and cash movements | `Date`, `Description`, `Settlement date`, `Receipt (GBP)`, `Payment (GBP)`, `Balance (GBP)` |
+| AIC Income Builder portfolio | Regular trailing income planning baseline | `Company`, `AIC sector`, `Income received`, `Shares held`, `Div freq`, `Yield (%)` |
+| Generic AJ Bell transactions | Compatibility import | date, description, amount or credit/debit |
+| Dividend history/events | Optional reconciliation data | ticker or ISIN, payment date, dividend per share |
 
-## Supported CSV shapes
+Dividend-per-share values must use pounds, not pence. For example, 5.5p should be entered as `0.055`.
 
-Headers are case/punctuation tolerant. The included examples document the baseline formats.
+## Reports
 
-- Holdings: `Investment`, `Quantity`, `Price`, `Value (£)`, `Date`, `Ticker`; optional cost/currency/ISIN/SEDOL.
-- Transactions: date, description, amount (or credit/debit); optional type/ticker/ISIN/quantity/fees/tax.
-- Dividend history: ticker or ISIN, payment date, dividend per share; optional ex-date/type/source/URL.
-- AIC Income Builder: `Company`, `AIC sector`, `Income received`, `Shares held`, `Div freq`, `Yield (%)`.
+- `/reports/historic-income.csv`
+- `/reports/historic-income-by-account.csv`
+- `/reports/historic-income-by-security.csv`
+- `/reports/forward-income.csv`
+- `/reports/unmatched-securities.csv`
+- `/reports/dividend-reconciliation.csv`
 
-Dividend-per-share values must use the same currency unit as the holding price. For the supplied AJ Bell export, prices are pounds, so enter dividends in pounds (for example `0.055`, not `5.5`, for 5.5p).
-
-## Test
+## Tests
 
 ```bash
 .venv/bin/pytest -q
 ```
 
-The tests cover the supplied CSV, classification, duplicate safety, matching hierarchy/manual aliases, calendar and UK tax years, forward-income methods, and reconciliation mismatch detection.
+The tests cover import detection, normalisation, duplicate safety, account seeding, security matching, UK tax years, forward income calculation and reconciliation mismatch detection.
 
-## Next build slice
+## More documentation
 
-Before production use, the next slice should add account/person administration, transaction-format fixtures from real AJ Bell exports, richer unmatched-row remediation, database migrations/backups, authentication at the deployment edge, and a reviewed AIC ingestion method. Automated AIC scraping is intentionally not included: no stable public API or permission was assumed.
+- [Data workflow](docs/DATA_WORKFLOW.md)
+- [Operations and deployment](docs/OPERATIONS.md)
+- [Roadmap](docs/ROADMAP.md)

@@ -231,6 +231,12 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     return render(request, "dashboard.html", metrics=metrics, by_account=by_account)
 
 
+@app.get("/help", response_class=HTMLResponse)
+def help_page(request: Request, db: Session = Depends(get_db)):
+    accounts = db.scalars(select(Account).order_by(Account.account_name)).all()
+    return render(request, "help.html", accounts=accounts)
+
+
 @app.get("/imports", response_class=HTMLResponse)
 def imports_page(request: Request, db: Session = Depends(get_db)):
     jobs = db.scalars(select(ImportJob).order_by(ImportJob.id.desc())).all()
