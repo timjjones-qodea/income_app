@@ -117,29 +117,33 @@ dt { color: var(--muted); } dd { margin: 0; }
 .current-assumption span, .current-assumption small { color: var(--muted); font-size: 11px; }
 details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); font-size: 13px; font-weight: 700; }
 .holdings-summary-panel { padding: 0; overflow: hidden; }
-.holdings-summary-panel > .panel-heading { padding: 22px 22px 0; }
-.holdings-total-band { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 18px; padding: 22px; background: linear-gradient(135deg, #12362b, #176149); color: #fff; }
-.holdings-total-band > div { padding: 6px 0; }
-.holdings-total-band .summary-label { display: block; color: #d4e7df; font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; }
-.holdings-total-band strong { display: block; margin-top: 8px; font-family: Georgia, serif; font-size: clamp(24px, 3vw, 36px); font-weight: 500; }
-.holdings-total-band small { display: block; margin-top: 4px; color: #d4e7df; }
-.account-rows { border-top: 1px solid var(--line); }
-.account-row { margin: 0; border-bottom: 1px solid var(--line); scroll-margin-top: 90px; }
-.account-row:last-child { border-bottom: 0; }
-.account-row summary { list-style: none; cursor: pointer; color: var(--ink); padding: 18px 22px; }
-.account-row summary::-webkit-details-marker { display: none; }
-.account-summary-row { display: grid; grid-template-columns: 20px minmax(110px, 1fr) minmax(180px, 1.4fr) repeat(4, minmax(90px, .75fr)) minmax(230px, 1.8fr); gap: 16px; align-items: center; }
-.expand-arrow { color: var(--green); font-size: 16px; transition: transform .15s; }
-.account-row[open] .expand-arrow { transform: rotate(90deg); }
-.account-name-cell strong { display: block; color: var(--green); font-size: 18px; }
-.account-name-cell small, .account-tax-cell small { display: block; margin-top: 3px; color: var(--muted); font-weight: 600; }
-.account-tax-cell { color: var(--ink); font-weight: 650; }
-.summary-metric { text-align: right; }
-.summary-metric small { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 750; }
-.summary-metric strong { display: block; margin-top: 4px; color: var(--ink); font-size: 17px; white-space: nowrap; }
-.source-cell { display: flex; flex-wrap: wrap; gap: 5px; }
-.source-cell .source { margin: 0; }
-.account-row-detail { padding: 0 22px 22px 58px; }
+.summary-table { font-size: 15px; }
+.summary-table th { padding-top: 16px; padding-bottom: 16px; background: #f5f8f6; }
+.summary-table td { vertical-align: middle; }
+.summary-table td strong { font-size: 16px; }
+.summary-table td small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; font-weight: 600; line-height: 1.35; }
+.summary-table .numeric { font-size: 16px; }
+.summary-table .strong { color: var(--green); font-weight: 800; }
+.account-summary-table th:nth-child(2), .account-summary-table td:nth-child(2) { width: 25%; }
+.account-summary-table th:nth-child(3), .account-summary-table td:nth-child(3) { width: 28%; }
+.account-summary-table th:nth-child(n+4), .account-summary-table td:nth-child(n+4) { width: 12%; }
+.expand-column { width: 42px; }
+.expand-cell { width: 42px; text-align: center; }
+.expand-row-button { display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border-radius: 50%; background: transparent; color: var(--green); font-size: 16px; line-height: 1; }
+.expand-row-button:hover, .expand-row-button:focus-visible { background: var(--green-light); outline: none; }
+.household-summary-row td { padding-top: 18px; padding-bottom: 18px; background: #12362b; color: #fff; border-bottom-color: #12362b; }
+.household-summary-row td strong { color: #fff; font-size: 18px; }
+.household-summary-row td small { color: #d4e7df; }
+.household-summary-row .numeric { color: #fff; font-size: 18px; font-weight: 800; }
+.account-total-row { scroll-margin-top: 90px; }
+.account-total-row > td { padding-top: 17px; padding-bottom: 17px; }
+.account-total-row > td:nth-child(2) strong { color: var(--green); }
+.account-total-row > td:nth-child(3) { color: var(--muted); }
+.account-detail-row:hover { background: transparent; }
+.account-detail-cell { padding: 0; background: #fbfdfb; }
+.account-detail-cell > .empty { margin: 0; }
+.account-detail-cell .detail-heading { padding: 22px 22px 0; }
+.account-detail-cell .drilldown-table { margin: 18px 22px 22px; }
 .detail-heading { align-items: end; padding-top: 4px; }
 .detail-heading .hint { margin: 5px 0 0; }
 .drilldown-table { margin-top: 18px; }
@@ -157,9 +161,6 @@ details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); fo
   nav { flex-wrap: wrap; justify-content: flex-end; gap: 10px 16px; }
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .grid-two, .security-grid, .aic-account-grid, .workflow-steps, .definition-grid, .priority-list { grid-template-columns: 1fr; }
-  .holdings-total-band, .account-summary-row { grid-template-columns: 1fr; }
-  .summary-metric { text-align: left; }
-  .account-row-detail { padding-left: 22px; }
   .detail-heading { display: block; }
   .detail-heading form { margin-top: 12px; }
   .help-panel { display: block; }
