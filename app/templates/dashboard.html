@@ -33,9 +33,9 @@
   </section>
   <section class="panel attention">
     <h2>Data quality</h2>
-    <div class="quality-row"><span>Unmatched income/trade rows</span><strong>{{ metrics.unmatched }}</strong></div>
-    <div class="quality-row"><span>Import warnings</span><strong>{{ metrics.warnings }}</strong></div>
-    <p class="muted">Every figure remains linked to its source import and the assumption used.</p>
+    <a class="quality-row quality-link" href="/securities#unmatched"><span>Unmatched income/trade rows</span><strong>{{ metrics.unmatched }}</strong></a>
+    <a class="quality-row quality-link" href="/imports/warnings"><span>Import warnings</span><strong>{{ metrics.warnings }}</strong></a>
+    <p class="muted">Click a quality count to review or fix the underlying rows.</p>
   </section>
 </div>
 {% endblock %}

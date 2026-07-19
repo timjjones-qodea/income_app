@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Import warnings · Retirement Income{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">Data quality</p><h1>Import warnings</h1><p>Rows staged with warnings. Some warnings are informational; rows linked to unmatched securities should be resolved from Securities.</p></div>
+  <div class="actions">
+    <a class="button secondary" href="/securities#unmatched">Resolve unmatched rows</a>
+    <a class="button secondary" href="/reports/import-warnings.csv">Export CSV</a>
+  </div>
+</div>
+<section class="panel">
+  {% if rows %}
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Import</th><th>Account</th><th class="numeric">Line</th><th>Warning</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td><a href="/imports/{{ row.import_job_id }}">#{{ row.import_job_id }}</a><small class="block">{{ row.job.original_filename }}</small></td>
+          <td>{{ row.job.account.account_name if row.job.account else "—" }}</td>
+          <td class="numeric">{{ row.row_number }}</td>
+          <td>{{ row.warnings }}</td>
+          <td><span class="status {% if row.committed %}status-committed{% else %}status-staged{% endif %}">{{ "Committed" if row.committed else "Staged" }}</span></td>
+          <td>{% if "security" in row.warnings|lower %}<a href="/securities#unmatched">Map security</a>{% else %}<a href="/imports/{{ row.import_job_id }}">Review import</a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty"><strong>No import warnings</strong><p>Committed and staged imports are clean.</p></div>
+  {% endif %}
+</section>
+{% endblock %}

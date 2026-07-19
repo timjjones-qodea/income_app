@@ -23,7 +23,7 @@
     <article><strong>Dividend quantity + name</strong><p>Coded as dividend and matched to the imported holding by security name.</p></article>
   </div>
 </section>
-{% if unmatched %}<section class="panel attention"><div class="panel-heading"><h2>Unmatched transaction descriptions</h2><a href="/reports/unmatched-securities.csv">Export</a></div>
+{% if unmatched %}<section class="panel attention" id="unmatched"><div class="panel-heading"><h2>Unmatched transaction descriptions</h2><a href="/reports/unmatched-securities.csv">Export</a></div>
 {% for item in unmatched %}<form action="/securities/{{ securities[0].id if securities else 0 }}/map" method="post" class="mapping-row"><input name="external_name" value="{{ item.description }}" readonly><select onchange="this.form.action='/securities/'+this.value+'/map'">{% for security in securities %}<option value="{{ security.id }}">{{ security.ticker or "—" }} · {{ security.name }}</option>{% endfor %}</select><button>Save mapping</button></form>{% endfor %}</section>{% endif %}
 <section class="security-grid">
 {% for security in securities %}

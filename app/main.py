@@ -20,6 +20,7 @@ from app.models import (
     Account,
     HoldingSnapshot,
     ImportJob,
+    ImportRow,
     Person,
     Security,
     SecurityIncomeAssumption,
@@ -248,6 +249,17 @@ def imports_page(request: Request, db: Session = Depends(get_db)):
     return render(request, "imports.html", jobs=jobs, accounts=accounts, people=people)
 
 
+@app.get("/imports/warnings", response_class=HTMLResponse)
+def import_warnings_page(request: Request, db: Session = Depends(get_db)):
+    rows = db.scalars(
+        select(ImportRow)
+        .join(ImportRow.job)
+        .where(ImportRow.warnings.is_not(None), ImportJob.status != "ROLLED_BACK")
+        .order_by(ImportRow.id.desc())
+    ).all()
+    return render(request, "import_warnings.html", rows=rows)
+
+
 @app.post("/accounts")
 def create_account(
     account_name: str = Form(...),
@@ -376,6 +388,73 @@ def holding_account_summaries(db: Session, rows: list[dict]) -> list[dict]:
     return account_summaries
 
 
+def household_holding_breakdowns(rows: list[dict]) -> dict[str, list[dict]]:
+    by_asset_type: dict[str, dict] = {}
+    by_security: dict[int, dict] = {}
+    for row in rows:
+        security = row["security"]
+        asset_key = security.asset_type or "Other"
+        asset_target = by_asset_type.setdefault(
+            asset_key,
+            {
+                "asset_type": asset_key,
+                "security_ids": set(),
+                "account_ids": set(),
+                "positions": 0,
+                "value": Decimal("0"),
+                "income": Decimal("0"),
+            },
+        )
+        asset_target["security_ids"].add(security.id)
+        asset_target["account_ids"].add(row["account"].id)
+        asset_target["positions"] += 1
+        asset_target["value"] += row["value"]
+        asset_target["income"] += row["forward_income"]
+
+        security_target = by_security.setdefault(
+            security.id,
+            {
+                "security": security,
+                "account_ids": set(),
+                "positions": 0,
+                "quantity": Decimal("0"),
+                "value": Decimal("0"),
+                "income": Decimal("0"),
+            },
+        )
+        security_target["account_ids"].add(row["account"].id)
+        security_target["positions"] += 1
+        security_target["quantity"] += row["quantity"]
+        security_target["value"] += row["value"]
+        security_target["income"] += row["forward_income"]
+
+    asset_rows = []
+    for item in by_asset_type.values():
+        value = item["value"]
+        asset_rows.append(
+            {
+                **item,
+                "security_count": len(item["security_ids"]),
+                "account_count": len(item["account_ids"]),
+                "income_yield": item["income"] / value if value else Decimal("0"),
+            }
+        )
+    security_rows = []
+    for item in by_security.values():
+        value = item["value"]
+        security_rows.append(
+            {
+                **item,
+                "account_count": len(item["account_ids"]),
+                "income_yield": item["income"] / value if value else Decimal("0"),
+            }
+        )
+    return {
+        "asset_types": sorted(asset_rows, key=lambda item: item["value"], reverse=True),
+        "securities": sorted(security_rows, key=lambda item: item["value"], reverse=True),
+    }
+
+
 @app.get("/holdings", response_class=HTMLResponse)
 def holdings_page(request: Request, db: Session = Depends(get_db)):
     rows = forward_income_rows(db)
@@ -385,6 +464,7 @@ def holdings_page(request: Request, db: Session = Depends(get_db)):
         "holdings.html",
         rows=rows,
         account_summaries=account_summaries,
+        household_breakdowns=household_holding_breakdowns(rows),
         total_value=sum((row["value"] for row in rows), Decimal("0")),
         total_income=sum((row["forward_income"] for row in rows), Decimal("0")),
     )
@@ -436,6 +516,7 @@ def forward_income(request: Request, db: Session = Depends(get_db)):
         "holdings.html",
         rows=rows,
         account_summaries=holding_account_summaries(db, rows),
+        household_breakdowns=household_holding_breakdowns(rows),
         total_value=sum((row["value"] for row in rows), Decimal("0")),
         total_income=sum((row["forward_income"] for row in rows), Decimal("0")),
         title="Forward income",
@@ -650,6 +731,31 @@ def report_unmatched(db: Session = Depends(get_db)):
         "unmatched_securities.csv",
         ["transaction_id", "date", "description", "type", "amount"],
         [[row.id, row.transaction_date, row.description, row.transaction_type, row.net_amount] for row in rows],
+    )
+
+
+@app.get("/reports/import-warnings.csv")
+def report_import_warnings(db: Session = Depends(get_db)):
+    rows = db.scalars(
+        select(ImportRow)
+        .join(ImportRow.job)
+        .where(ImportRow.warnings.is_not(None), ImportJob.status != "ROLLED_BACK")
+        .order_by(ImportRow.id.desc())
+    ).all()
+    return csv_response(
+        "import_warnings.csv",
+        ["import_id", "file", "account", "line", "warnings", "committed"],
+        [
+            [
+                row.import_job_id,
+                row.job.original_filename,
+                row.job.account.account_name if row.job.account else "",
+                row.row_number,
+                row.warnings,
+                row.committed,
+            ]
+            for row in rows
+        ],
     )
 
 

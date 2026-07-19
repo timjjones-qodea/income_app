@@ -21,17 +21,19 @@
       <thead>
         <tr>
           <th class="expand-column"></th>
-          <th>Account</th>
-          <th>Tax</th>
-          <th class="numeric">Holdings</th>
-          <th class="numeric">Value</th>
-          <th class="numeric">Yield</th>
-          <th class="numeric">Income</th>
+          <th><button class="sort-button" type="button" data-sort="account">Account</button></th>
+          <th><button class="sort-button" type="button" data-sort="tax">Tax</button></th>
+          <th class="numeric"><button class="sort-button" type="button" data-sort="holdings">Holdings</button></th>
+          <th class="numeric"><button class="sort-button" type="button" data-sort="value">Value</button></th>
+          <th class="numeric"><button class="sort-button" type="button" data-sort="yield">Yield</button></th>
+          <th class="numeric"><button class="sort-button" type="button" data-sort="income">Income</button></th>
         </tr>
       </thead>
       <tbody>
         <tr class="household-summary-row">
-          <td></td>
+          <td class="expand-cell">
+            <button class="expand-row-button" type="button" aria-label="Expand household totals" aria-expanded="false" aria-controls="household-detail" data-target="household-detail">›</button>
+          </td>
           <td>
             <strong>Household total</strong>
             <small>{{ account_summaries|length }} accounts</small>
@@ -42,10 +44,50 @@
           <td class="numeric">{{ (total_income / total_value if total_value else 0)|percent }}</td>
           <td class="numeric">{{ total_income|default(0)|money }}</td>
         </tr>
+        <tr class="household-detail-row" id="household-detail" hidden>
+          <td colspan="7" class="account-detail-cell">
+            <div class="detail-grid">
+              <div class="table-scroll drilldown-table">
+                <table>
+                  <thead><tr><th>Asset type</th><th class="numeric">Securities</th><th class="numeric">Positions</th><th class="numeric">Value</th><th class="numeric">Yield</th><th class="numeric">Income</th></tr></thead>
+                  <tbody>
+                    {% for row in household_breakdowns.asset_types %}
+                    <tr>
+                      <td><strong>{{ row.asset_type }}</strong><small class="block">{{ row.account_count }} accounts</small></td>
+                      <td class="numeric">{{ row.security_count }}</td>
+                      <td class="numeric">{{ row.positions }}</td>
+                      <td class="numeric strong">{{ row.value|money }}</td>
+                      <td class="numeric">{{ row.income_yield|percent }}</td>
+                      <td class="numeric strong">{{ row.income|money }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <div class="table-scroll drilldown-table">
+                <table>
+                  <thead><tr><th>Distinct security</th><th class="numeric">Accounts</th><th class="numeric">Positions</th><th class="numeric">Value</th><th class="numeric">Yield</th><th class="numeric">Income</th></tr></thead>
+                  <tbody>
+                    {% for row in household_breakdowns.securities %}
+                    <tr>
+                      <td><strong>{{ row.security.ticker or "—" }}</strong><small class="block">{{ row.security.name }}</small></td>
+                      <td class="numeric">{{ row.account_count }}</td>
+                      <td class="numeric">{{ row.positions }}</td>
+                      <td class="numeric strong">{{ row.value|money }}</td>
+                      <td class="numeric">{{ row.income_yield|percent }}</td>
+                      <td class="numeric strong">{{ row.income|money }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </td>
+        </tr>
     {% for summary in account_summaries %}
-        <tr class="account-total-row {% if summary.has_fallback %}row-warning{% endif %}" id="account-{{ summary.account.id }}">
+        <tr class="account-total-row {% if summary.has_fallback %}row-warning{% endif %}" id="account-{{ summary.account.id }}" data-sort-account="{{ summary.account.account_name|lower }}" data-sort-tax="{{ (summary.account.tax_treatment or 'Not set')|lower }}" data-sort-holdings="{{ summary.security_count }}" data-sort-value="{{ summary.value }}" data-sort-yield="{{ summary.income_yield }}" data-sort-income="{{ summary.income }}">
           <td class="expand-cell">
-            <button class="expand-row-button" type="button" aria-expanded="false" aria-controls="account-detail-{{ summary.account.id }}" data-target="account-detail-{{ summary.account.id }}">▸</button>
+            <button class="expand-row-button" type="button" aria-label="Expand {{ summary.account.account_name }}" aria-expanded="false" aria-controls="account-detail-{{ summary.account.id }}" data-target="account-detail-{{ summary.account.id }}">›</button>
           </td>
           <td>
             <strong>{{ summary.account.account_name }}</strong>
@@ -109,13 +151,47 @@
     const target = document.getElementById(button.dataset.target);
     if (!target) return;
     button.setAttribute("aria-expanded", String(expanded));
-    button.textContent = expanded ? "▾" : "▸";
+    button.textContent = expanded ? "⌄" : "›";
     target.hidden = !expanded;
   };
 
   document.querySelectorAll(".expand-row-button").forEach((button) => {
     button.addEventListener("click", () => {
       setExpanded(button, button.getAttribute("aria-expanded") !== "true");
+    });
+  });
+
+  const table = document.querySelector(".account-summary-table");
+  const tbody = table && table.tBodies[0];
+  let currentSort = { key: null, direction: "asc" };
+  const numericKeys = new Set(["holdings", "value", "yield", "income"]);
+
+  document.querySelectorAll(".sort-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.sort;
+      const direction = currentSort.key === key && currentSort.direction === "asc" ? "desc" : "asc";
+      currentSort = { key, direction };
+      document.querySelectorAll(".sort-button").forEach((item) => item.removeAttribute("data-direction"));
+      button.dataset.direction = direction;
+
+      const pairs = Array.from(document.querySelectorAll(".account-total-row")).map((row) => ({
+        row,
+        detail: document.getElementById(row.querySelector(".expand-row-button").dataset.target),
+      }));
+
+      pairs.sort((left, right) => {
+        const leftValue = left.row.dataset[`sort${key[0].toUpperCase()}${key.slice(1)}`] || "";
+        const rightValue = right.row.dataset[`sort${key[0].toUpperCase()}${key.slice(1)}`] || "";
+        const comparison = numericKeys.has(key)
+          ? Number(leftValue) - Number(rightValue)
+          : leftValue.localeCompare(rightValue);
+        return direction === "asc" ? comparison : -comparison;
+      });
+
+      pairs.forEach(({ row, detail }) => {
+        tbody.appendChild(row);
+        if (detail) tbody.appendChild(detail);
+      });
     });
   });
 
