@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+from calendar import month_abbr
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -19,6 +20,7 @@ from app.database import SessionLocal, get_db, init_db
 from app.importers import extract_account_code
 from app.models import (
     Account,
+    AicPortfolioIncomeSnapshot,
     HoldingSnapshot,
     ImportJob,
     ImportRow,
@@ -52,6 +54,12 @@ AIC_PORTFOLIO_IDS = {
     "Wendy SIPP": "42717",
     "Wendy GIA": "42743",  # Wendy Equity on AIC
 }
+
+CHART_PALETTE = (
+    "#0b6374", "#4d8d23", "#6f99bf", "#d85a10", "#b91f33", "#4a4a4a",
+    "#e02f3d", "#83a8c9", "#8aa871", "#f08b56", "#9d9d9d", "#6b9f3a",
+    "#c8631b", "#2f7686", "#c04f61", "#7894ad", "#5c7d32", "#b8792e",
+)
 
 
 def seed_vanguard_money_market_security(db: Session) -> None:
@@ -555,6 +563,177 @@ def household_holding_breakdowns(rows: list[dict]) -> dict[str, list[dict]]:
     }
 
 
+def shift_month(value: date, offset: int) -> date:
+    index = value.year * 12 + value.month - 1 + offset
+    return date(index // 12, index % 12 + 1, 1)
+
+
+def last_complete_month_window(today: date) -> tuple[date, date, list[date]]:
+    current_month = date(today.year, today.month, 1)
+    last_month = shift_month(current_month, -1)
+    months = [shift_month(last_month, offset) for offset in range(-11, 1)]
+    end = shift_month(last_month, 1) - timedelta(days=1)
+    return months[0], end, months
+
+
+def latest_aic_snapshots(db: Session) -> list[AicPortfolioIncomeSnapshot]:
+    snapshots = db.scalars(
+        select(AicPortfolioIncomeSnapshot)
+        .join(ImportJob, AicPortfolioIncomeSnapshot.source_import_id == ImportJob.id)
+        .where(ImportJob.status != "ROLLED_BACK")
+        .order_by(
+            AicPortfolioIncomeSnapshot.account_id,
+            AicPortfolioIncomeSnapshot.security_id,
+            AicPortfolioIncomeSnapshot.snapshot_date.desc(),
+            AicPortfolioIncomeSnapshot.id.desc(),
+        )
+    ).all()
+    latest: dict[tuple[int, int], AicPortfolioIncomeSnapshot] = {}
+    for snapshot in snapshots:
+        latest.setdefault((snapshot.account_id, snapshot.security_id), snapshot)
+    return list(latest.values())
+
+
+def aic_visualisation_context(
+    db: Session,
+    account_id: int | None,
+    breakdown: str,
+) -> dict:
+    accounts = db.scalars(select(Account).order_by(Account.account_name)).all()
+    account_lookup = {account.id: account for account in accounts}
+    selected_account = account_lookup.get(account_id) if account_id else None
+    start, end, months = last_complete_month_window(date.today())
+
+    actual_rows = [
+        row for row in historic_income_rows(db)
+        if start <= row["transaction"].transaction_date <= end
+        and (not account_id or row["account"].id == account_id)
+    ]
+    aic_snapshots = [
+        snapshot for snapshot in latest_aic_snapshots(db)
+        if not account_id or snapshot.account_id == account_id
+    ]
+
+    component_key = "account" if breakdown == "account" else "security"
+    component_totals: dict[str, Decimal] = {}
+    month_totals: dict[date, Decimal] = {month: Decimal("0") for month in months}
+    month_components: dict[date, dict[str, Decimal]] = {month: {} for month in months}
+    for row in actual_rows:
+        month = date(row["transaction"].transaction_date.year, row["transaction"].transaction_date.month, 1)
+        if month not in month_totals:
+            continue
+        if component_key == "account":
+            label = row["account"].account_name
+        else:
+            label = row["security"].ticker if row["security"] and row["security"].ticker else (
+                row["security"].name if row["security"] else "Unmatched"
+            )
+        value = row["total"]
+        month_totals[month] += value
+        month_components[month][label] = month_components[month].get(label, Decimal("0")) + value
+        component_totals[label] = component_totals.get(label, Decimal("0")) + value
+
+    ordered_components = [
+        label for label, _amount in sorted(
+            component_totals.items(), key=lambda item: item[1], reverse=True
+        )
+    ]
+    color_by_component = {
+        label: CHART_PALETTE[index % len(CHART_PALETTE)]
+        for index, label in enumerate(ordered_components)
+    }
+    max_month_total = max(month_totals.values() or [Decimal("0")])
+    chart_months = []
+    for month in months:
+        total = month_totals[month]
+        segments = []
+        for label in ordered_components:
+            amount = month_components[month].get(label, Decimal("0"))
+            if not amount or not max_month_total:
+                continue
+            segments.append(
+                {
+                    "label": label,
+                    "amount": amount,
+                    "height": float((amount / max_month_total) * Decimal("100")),
+                    "color": color_by_component[label],
+                }
+            )
+        chart_months.append(
+            {
+                "month": month,
+                "label": month_abbr[month.month],
+                "total": total,
+                "segments": segments,
+            }
+        )
+
+    aic_by_security: dict[int, dict] = {}
+    for snapshot in aic_snapshots:
+        target = aic_by_security.setdefault(
+            snapshot.security_id,
+            {
+                "security": snapshot.security,
+                "sector": snapshot.aic_sector or snapshot.security.sector,
+                "dividend_frequency": snapshot.dividend_frequency,
+                "accounts": set(),
+                "shares_held": Decimal("0"),
+                "income_received": Decimal("0"),
+                "trailing_yield_values": [],
+            },
+        )
+        target["accounts"].add(snapshot.account.account_name)
+        target["shares_held"] += Decimal(snapshot.shares_held)
+        target["income_received"] += Decimal(snapshot.income_received)
+        if snapshot.trailing_yield is not None:
+            target["trailing_yield_values"].append(Decimal(snapshot.trailing_yield))
+
+    aic_components = []
+    for item in aic_by_security.values():
+        yields = item["trailing_yield_values"]
+        trailing_yield = sum(yields, Decimal("0")) / Decimal(len(yields)) if yields else None
+        aic_components.append(
+            {
+                **item,
+                "account_count": len(item["accounts"]),
+                "account_names": ", ".join(sorted(item["accounts"])),
+                "trailing_yield": trailing_yield,
+            }
+        )
+    aic_components.sort(key=lambda item: item["income_received"], reverse=True)
+
+    actual_dividends = sum((row["dividends"] for row in actual_rows), Decimal("0"))
+    actual_interest = sum((row["interest"] for row in actual_rows), Decimal("0"))
+    actual_total = actual_dividends + actual_interest
+    aic_total = sum((item["income_received"] for item in aic_components), Decimal("0"))
+    months_without_actual = sum(1 for month in months if month_totals[month] == 0)
+
+    return {
+        "accounts": accounts,
+        "selected_account": selected_account,
+        "selected_account_id": account_id or "",
+        "breakdown": component_key,
+        "period_label": f"{month_abbr[start.month]} {start.year} – {month_abbr[end.month]} {end.year}",
+        "chart_months": chart_months,
+        "aic_components": aic_components,
+        "actual_total": actual_total,
+        "actual_dividends": actual_dividends,
+        "actual_interest": actual_interest,
+        "aic_total": aic_total,
+        "aic_monthly_average": aic_total / Decimal("12") if aic_total else Decimal("0"),
+        "aic_gap": aic_total - actual_total,
+        "months_without_actual": months_without_actual,
+        "component_legend": [
+            {
+                "label": label,
+                "color": color_by_component[label],
+                "amount": component_totals[label],
+            }
+            for label in ordered_components[:18]
+        ],
+    }
+
+
 @app.get("/holdings", response_class=HTMLResponse)
 def holdings_page(request: Request, db: Session = Depends(get_db)):
     rows = forward_income_rows(db)
@@ -659,6 +838,20 @@ def income_history(
         planning_income=forward_total,
         actual_vs_planning=summary["total"] - forward_total,
         actual_yield=summary["total"] / current_value if current_value else Decimal("0"),
+    )
+
+
+@app.get("/income/visualisation", response_class=HTMLResponse)
+def income_visualisation(
+    request: Request,
+    account_id: int | None = None,
+    breakdown: str = "security",
+    db: Session = Depends(get_db),
+):
+    return render(
+        request,
+        "income_visualisation.html",
+        **aic_visualisation_context(db, account_id, breakdown),
     )
 
 

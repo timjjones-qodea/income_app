@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Income visualisation · Retirement Income{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">AIC & AJ Bell comparison</p>
+    <h1>Income visualisation</h1>
+    <p>Compare the latest imported AIC portfolio-income snapshot with actual AJ Bell cash receipts for the last complete 12 months.</p>
+  </div>
+  <a class="button secondary" href="/income/history">Receipt audit trail</a>
+</div>
+
+<section class="panel help-panel">
+  <div>
+    <h2>Why these numbers can differ</h2>
+    <p>AIC income is a current-holdings view: it says what the shares now held produced over the selected AIC period. Actual income is payment-date cash received in AJ Bell. Purchases, sales, missing cash statements and special dividends can make the two numbers diverge.</p>
+    <p>The app currently stores the exported AIC row values, but not the AIC screen options used to create the file. If you import both with and without special dividends, this page uses the latest committed AIC row for each account/security.</p>
+  </div>
+</section>
+
+<section class="panel">
+  <form method="get" class="filters visualisation-filters">
+    <label>Portfolio
+      <select name="account_id">
+        <option value="">Combined portfolios</option>
+        {% for account in accounts %}<option value="{{ account.id }}" {% if account.id == selected_account_id %}selected{% endif %}>{{ account.account_name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Monthly bars show
+      <select name="breakdown">
+        <option value="security" {% if breakdown == "security" %}selected{% endif %}>Securities</option>
+        <option value="account" {% if breakdown == "account" %}selected{% endif %}>Accounts</option>
+      </select>
+    </label>
+    <button>Update view</button>
+  </form>
+</section>
+
+<section class="metrics compact">
+  <article><span>AIC snapshot income</span><strong>{{ aic_total|money }}</strong><small>{{ aic_monthly_average|money }} monthly average · latest committed AIC rows</small></article>
+  <article><span>AJ Bell actual receipts</span><strong>{{ actual_total|money }}</strong><small>Dividends {{ actual_dividends|money }} · interest {{ actual_interest|money }}</small></article>
+  <article><span>AIC less actual</span><strong>{{ aic_gap|money }}</strong><small>Current-holdings basis versus received-cash basis</small></article>
+  <article><span>Months without actual receipts</span><strong>{{ months_without_actual }}</strong><small>{{ period_label }}</small></article>
+</section>
+
+<section class="panel income-chart-panel">
+  <div class="panel-heading">
+    <div>
+      <h2>Monthly actual receipts</h2>
+      <p class="muted">{{ period_label }} · stacked by {{ "account" if breakdown == "account" else "security" }}</p>
+    </div>
+  </div>
+  {% if chart_months %}
+  <div class="income-chart">
+    {% for month in chart_months %}
+    <div class="income-chart-month">
+      <div class="income-chart-value">{{ month.total|money }}</div>
+      <div class="income-chart-bar" aria-label="{{ month.label }} {{ month.total|money }}">
+        {% for segment in month.segments %}
+        <span class="income-chart-segment" title="{{ segment.label }} · {{ segment.amount|money }}" style="height: {{ '%.4f'|format(segment.height) }}%; background: {{ segment.color }}"></span>
+        {% endfor %}
+      </div>
+      <div class="income-chart-label">{{ month.label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if component_legend %}
+  <div class="chart-legend">
+    {% for item in component_legend %}
+    <span><i style="background: {{ item.color }}"></i>{{ item.label }} <small>{{ item.amount|money }}</small></span>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="empty">No AJ Bell cash receipts are available for this period.</div>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <h2>AIC income components</h2>
+      <p class="muted">{{ selected_account.account_name if selected_account else "Combined portfolios" }} · latest committed AIC snapshot per account/security</p>
+    </div>
+  </div>
+  {% if aic_components %}
+  <table>
+    <thead><tr><th>Company</th><th>AIC sector</th><th>Accounts</th><th class="numeric">Income received</th><th class="numeric">Shares held</th><th>Div freq</th><th class="numeric">Yield</th></tr></thead>
+    <tbody>
+    {% for item in aic_components %}
+    <tr>
+      <td><strong>{{ item.security.ticker or "—" }}</strong><small class="block">{{ item.security.name }}</small></td>
+      <td>{{ item.sector or "—" }}</td>
+      <td>{{ item.account_names }}</td>
+      <td class="numeric strong">{{ item.income_received|money }}</td>
+      <td class="numeric">{{ "{:,.0f}".format(item.shares_held) }}</td>
+      <td>{{ item.dividend_frequency or "—" }}</td>
+      <td class="numeric">{{ item.trailing_yield|percent if item.trailing_yield is not none else "—" }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr><td colspan="3">Total</td><td class="numeric strong">{{ aic_total|money }}</td><td colspan="3"></td></tr></tfoot>
+  </table>
+  {% else %}
+  <div class="empty">No committed AIC portfolio-income snapshots are available for this selection.</div>
+  {% endif %}
+</section>
+{% endblock %}
