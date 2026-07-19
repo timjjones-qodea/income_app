@@ -47,6 +47,7 @@ Tax labels are currently descriptive. Detailed tax calculation is a planned buil
 - Security assumptions for manual dividend-per-share or yield overrides.
 - Dashboard metrics for portfolio value, planning income and actual trailing income.
 - Holdings view showing current holdings paired with the highest-priority income source.
+- Account-level holding deletion from Holdings, for clearing a wrongly loaded portfolio CSV before re-import.
 - Income history view showing actual receipts by calendar year and UK tax year.
 - Securities view for unmatched rows and manual income assumptions.
 - Reconciliation view comparing actual dividends with dividend events when those events exist.

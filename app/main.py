@@ -11,13 +11,14 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Upload
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db, init_db
 from app.importers import extract_account_code
 from app.models import (
     Account,
+    HoldingSnapshot,
     ImportJob,
     Person,
     Security,
@@ -387,6 +388,16 @@ def holdings_page(request: Request, db: Session = Depends(get_db)):
         total_value=sum((row["value"] for row in rows), Decimal("0")),
         total_income=sum((row["forward_income"] for row in rows), Decimal("0")),
     )
+
+
+@app.post("/holdings/accounts/{account_id}/delete-holdings")
+def delete_account_holdings(account_id: int, db: Session = Depends(get_db)):
+    account = db.get(Account, account_id)
+    if not account:
+        raise HTTPException(404, "Account not found")
+    db.execute(delete(HoldingSnapshot).where(HoldingSnapshot.account_id == account_id))
+    db.commit()
+    return RedirectResponse("/holdings", status_code=303)
 
 
 @app.get("/income/history", response_class=HTMLResponse)

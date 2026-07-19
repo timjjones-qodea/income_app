@@ -116,6 +116,8 @@ After each import:
 - Check Holdings for implausible fallback-yield rows.
 - Prefer manual assumptions for securities where the calculated source says fallback yield.
 
+If a portfolio CSV was loaded against the wrong account, open Holdings, expand the affected account row and use **Delete holdings for this account**. This removes holding snapshots for that account only. It does not delete AJ Bell cash-statement transactions, income history, AIC planning snapshots or securities.
+
 ## Refresh cadence
 
 Suggested cadence for an acquire-and-hold retirement income portfolio:
