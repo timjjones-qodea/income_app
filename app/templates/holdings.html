@@ -15,28 +15,36 @@
 </section>
 
 {% if rows %}
-<section class="panel">
-  <div class="panel-heading"><h2>Account totals</h2><span>{{ account_summaries|length }} accounts</span></div>
-  <div class="holdings-grid holdings-grid-header">
-    <span>Account</span>
-    <span>Tax treatment</span>
-    <span class="numeric">Holdings</span>
-    <span class="numeric">Total value</span>
-    <span class="numeric">Prior dividend yield</span>
-    <span class="numeric">Planning income</span>
-    <span>Data source check</span>
+<section class="panel holdings-summary-panel">
+  <div class="holdings-total-band">
+    <div>
+      <span class="summary-label">Household total</span>
+      <strong>{{ total_value|default(0)|money }}</strong>
+      <small>{{ account_summaries|length }} accounts · {{ rows|length }} holdings</small>
+    </div>
+    <div>
+      <span class="summary-label">Prior dividend yield</span>
+      <strong>{{ (total_income / total_value if total_value else 0)|percent }}</strong>
+      <small>Planning income / current value</small>
+    </div>
+    <div>
+      <span class="summary-label">Planning income</span>
+      <strong>{{ total_income|default(0)|money }}</strong>
+      <small>Annualised from best available source</small>
+    </div>
   </div>
   <div class="account-rows">
     {% for summary in account_summaries %}
     <details class="account-row {% if summary.has_fallback %}row-warning{% endif %}" id="account-{{ summary.account.id }}">
-      <summary class="holdings-grid account-summary-grid">
-        <span class="account-cell"><strong>{{ summary.account.account_name }}</strong><small class="block">{{ summary.account.owner.name }} · {{ summary.account.wrapper_type }}</small></span>
-        <span>{{ summary.account.tax_treatment or "Not set" }}{% if summary.account.notes %}<small class="block">{{ summary.account.notes }}</small>{% endif %}</span>
-        <span class="numeric">{{ summary.security_count }}</span>
-        <span class="numeric strong">{{ summary.value|money }}</span>
-        <span class="numeric">{{ summary.income_yield|percent }}</span>
-        <span class="numeric strong">{{ summary.income|money }}</span>
-        <span>{% if summary.sources %}{% for source in summary.sources %}<span class="source source-line">{{ source }}</span>{% endfor %}{% else %}<span class="muted">No holdings loaded</span>{% endif %}</span>
+      <summary class="account-summary-row">
+        <span class="expand-arrow" aria-hidden="true">▸</span>
+        <span class="account-name-cell"><strong>{{ summary.account.account_name }}</strong><small>{{ summary.account.owner.name }} · {{ summary.account.wrapper_type }}</small></span>
+        <span class="account-tax-cell">{{ summary.account.tax_treatment or "Not set" }}{% if summary.account.notes %}<small>{{ summary.account.notes }}</small>{% endif %}</span>
+        <span class="summary-metric"><small>Holdings</small><strong>{{ summary.security_count }}</strong></span>
+        <span class="summary-metric"><small>Value</small><strong>{{ summary.value|money }}</strong></span>
+        <span class="summary-metric"><small>Yield</small><strong>{{ summary.income_yield|percent }}</strong></span>
+        <span class="summary-metric"><small>Income</small><strong>{{ summary.income|money }}</strong></span>
+        <span class="source-cell">{% if summary.sources %}{% for source in summary.sources %}<span class="source">{{ source }}</span>{% endfor %}{% else %}<span class="muted">No holdings loaded</span>{% endif %}</span>
       </summary>
       <div class="account-row-detail">
         {% if summary.rows %}
@@ -74,15 +82,6 @@
       </div>
     </details>
     {% endfor %}
-  </div>
-  <div class="holdings-grid household-total-row">
-    <span>Household total</span>
-    <span></span>
-    <span></span>
-    <span class="numeric">{{ total_value|default(0)|money }}</span>
-    <span class="numeric">{{ (total_income / total_value if total_value else 0)|percent }}</span>
-    <span class="numeric">{{ total_income|default(0)|money }}</span>
-    <span></span>
   </div>
 </section>
 {% else %}

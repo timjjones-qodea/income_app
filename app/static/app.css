@@ -116,21 +116,32 @@ dt { color: var(--muted); } dd { margin: 0; }
 .current-assumption { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 6px; background: var(--green-light); }
 .current-assumption span, .current-assumption small { color: var(--muted); font-size: 11px; }
 details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); font-size: 13px; font-weight: 700; }
-.holdings-grid { display: grid; grid-template-columns: minmax(125px, 1.1fr) minmax(190px, 1.6fr) minmax(70px, .55fr) minmax(115px, .9fr) minmax(130px, .95fr) minmax(120px, .95fr) minmax(220px, 1.8fr); gap: 14px; align-items: start; }
-.holdings-grid-header { padding: 13px 16px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .055em; font-weight: 750; background: #f8faf8; border-bottom: 1px solid var(--line); }
-.account-rows { border-bottom: 1px solid var(--line); }
+.holdings-summary-panel { padding: 0; overflow: hidden; }
+.holdings-summary-panel > .panel-heading { padding: 22px 22px 0; }
+.holdings-total-band { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 18px; padding: 22px; background: linear-gradient(135deg, #12362b, #176149); color: #fff; }
+.holdings-total-band > div { padding: 6px 0; }
+.holdings-total-band .summary-label { display: block; color: #d4e7df; font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; }
+.holdings-total-band strong { display: block; margin-top: 8px; font-family: Georgia, serif; font-size: clamp(24px, 3vw, 36px); font-weight: 500; }
+.holdings-total-band small { display: block; margin-top: 4px; color: #d4e7df; }
+.account-rows { border-top: 1px solid var(--line); }
 .account-row { margin: 0; border-bottom: 1px solid var(--line); scroll-margin-top: 90px; }
 .account-row:last-child { border-bottom: 0; }
-.account-row summary { list-style: none; cursor: pointer; color: var(--ink); padding: 18px 16px; }
+.account-row summary { list-style: none; cursor: pointer; color: var(--ink); padding: 18px 22px; }
 .account-row summary::-webkit-details-marker { display: none; }
-.account-row summary::before { content: "▸"; color: var(--green); font-weight: 800; margin-right: 4px; }
-.account-row[open] summary::before { content: "▾"; }
-.account-summary-grid { grid-template-columns: 18px minmax(125px, 1.1fr) minmax(190px, 1.6fr) minmax(70px, .55fr) minmax(115px, .9fr) minmax(130px, .95fr) minmax(120px, .95fr) minmax(220px, 1.8fr); }
-.account-summary-grid > *:first-child { grid-column: 2; }
-.account-row-detail { padding: 0 16px 20px 34px; }
+.account-summary-row { display: grid; grid-template-columns: 20px minmax(110px, 1fr) minmax(180px, 1.4fr) repeat(4, minmax(90px, .75fr)) minmax(230px, 1.8fr); gap: 16px; align-items: center; }
+.expand-arrow { color: var(--green); font-size: 16px; transition: transform .15s; }
+.account-row[open] .expand-arrow { transform: rotate(90deg); }
+.account-name-cell strong { display: block; color: var(--green); font-size: 18px; }
+.account-name-cell small, .account-tax-cell small { display: block; margin-top: 3px; color: var(--muted); font-weight: 600; }
+.account-tax-cell { color: var(--ink); font-weight: 650; }
+.summary-metric { text-align: right; }
+.summary-metric small { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 750; }
+.summary-metric strong { display: block; margin-top: 4px; color: var(--ink); font-size: 17px; white-space: nowrap; }
+.source-cell { display: flex; flex-wrap: wrap; gap: 5px; }
+.source-cell .source { margin: 0; }
+.account-row-detail { padding: 0 22px 22px 58px; }
 .detail-heading { align-items: end; padding-top: 4px; }
 .detail-heading .hint { margin: 5px 0 0; }
-.household-total-row { padding: 17px 16px; font-weight: 750; background: #f8faf8; }
 .drilldown-table { margin-top: 18px; }
 .form-stack { display: grid; gap: 11px; padding-top: 15px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -146,10 +157,9 @@ details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); fo
   nav { flex-wrap: wrap; justify-content: flex-end; gap: 10px 16px; }
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .grid-two, .security-grid, .aic-account-grid, .workflow-steps, .definition-grid, .priority-list { grid-template-columns: 1fr; }
-  .holdings-grid-header { display: none; }
-  .holdings-grid, .account-summary-grid, .household-total-row { grid-template-columns: 1fr; }
-  .account-summary-grid > *:first-child { grid-column: auto; }
-  .account-row-detail { padding-left: 16px; }
+  .holdings-total-band, .account-summary-row { grid-template-columns: 1fr; }
+  .summary-metric { text-align: left; }
+  .account-row-detail { padding-left: 22px; }
   .detail-heading { display: block; }
   .detail-heading form { margin-top: 12px; }
   .help-panel { display: block; }
