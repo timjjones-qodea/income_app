@@ -14,7 +14,7 @@ from app.models import (
     SecurityIncomeAssumption,
     Transaction,
 )
-from app.main import rematch_unmatched_transactions
+from app.main import rematch_unmatched_transactions, seed_vanguard_money_market_security
 from app.security_matching import match_security, save_manual_mapping
 from app.services import (
     forward_income_rows,
@@ -213,6 +213,50 @@ def test_rematch_unmatched_transactions_clears_resolved_warning(db, account):
     assert rematch_unmatched_transactions(db) == 1
     transaction = db.scalar(select(Transaction))
     row = db.scalar(select(ImportRow))
+    assert transaction.security_id == security.id
+    assert row.warnings is None
+    assert job.warning_count == 0
+
+
+def test_seeded_vanguard_money_market_maps_historic_rows(db, account):
+    seed_vanguard_money_market_security(db)
+    security = match_security(
+        db, name="Purchase 236,116.3582 Vanguard Stlg S/T Mny Mkts A GBP Acc"
+    )
+    assert security
+    assert security.ticker == "VASSTAI"
+    assert security.asset_type == "Fund"
+
+    job = add_job(db, account)
+    job.warning_count = 1
+    db.add(
+        ImportRow(
+            import_job_id=job.id,
+            row_number=5,
+            raw_json="{}",
+            normalized_json='{"description": "Income Payment 236116.3582 Vanguard Stlg S/T Mny Mkts A GBP Acc"}',
+            row_hash="vanguard-income",
+            warnings="Income row has no ticker; security match may need review",
+            committed=True,
+        )
+    )
+    db.add(
+        Transaction(
+            account_id=account.id,
+            security_id=None,
+            transaction_date=date(2026, 6, 30),
+            transaction_type="DIVIDEND",
+            description="Income Payment 236116.3582 Vanguard Stlg S/T Mny Mkts A GBP Acc",
+            net_amount=Decimal("100"),
+            source_import_id=job.id,
+            source_row_hash="vanguard-income",
+        )
+    )
+    db.commit()
+
+    assert rematch_unmatched_transactions(db) == 1
+    transaction = db.scalar(select(Transaction).where(Transaction.source_row_hash == "vanguard-income"))
+    row = db.scalar(select(ImportRow).where(ImportRow.row_hash == "vanguard-income"))
     assert transaction.security_id == security.id
     assert row.warnings is None
     assert job.warning_count == 0

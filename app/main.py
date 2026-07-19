@@ -54,6 +54,44 @@ AIC_PORTFOLIO_IDS = {
 }
 
 
+def seed_vanguard_money_market_security(db: Session) -> None:
+    security = db.scalar(select(Security).where(Security.ticker == "VASSTAI"))
+    if not security:
+        security = db.scalar(
+            select(Security).where(Security.name == "Vanguard Sterling Short-Term Money Market Fund")
+        )
+    if not security:
+        security = Security(
+            name="Vanguard Sterling Short-Term Money Market Fund",
+            ticker="VASSTAI",
+            currency="GBP",
+            asset_type="Fund",
+            sector="Money Market",
+        )
+        db.add(security)
+        db.flush()
+    else:
+        security.name = "Vanguard Sterling Short-Term Money Market Fund"
+        security.ticker = security.ticker or "VASSTAI"
+        security.asset_type = security.asset_type if security.asset_type != "Other" else "Fund"
+        security.sector = security.sector or "Money Market"
+
+    for external_name in (
+        "Vanguard Sterling Short-Term Money Market Fund",
+        "Vanguard Sterling Short Term Money Market",
+        "Vanguard Sterling Short-Term Money Market",
+        "Vanguard Stlg S/T Mny Mkts A GBP Acc",
+        "Vanguard Stlg S/T Mny Mkts A GBP",
+        "Vanguard Stlg S/T Mny Mkts",
+        "Purchase 236,116.3582 Vanguard Stlg S/T Mny Mkts A GBP Acc",
+        "Sale 75,060.987 Vanguard Stlg S/T Mny Mkts A GBP Acc",
+        "Dividend 236116.3582 Vanguard Stlg S/T Mny Mkts A GBP Acc",
+        "Income Payment 236116.3582 Vanguard Stlg S/T Mny Mkts A GBP Acc",
+        "Distribution 236116.3582 Vanguard Stlg S/T Mny Mkts A GBP Acc",
+    ):
+        save_manual_mapping(db, external_name, security.id)
+
+
 def seed_reference_data(db: Session) -> None:
     wife = db.scalar(select(Person).where(Person.name == "Wife"))
     wendy = db.scalar(select(Person).where(Person.name == "Wendy"))
@@ -127,6 +165,7 @@ def seed_reference_data(db: Session) -> None:
             and account.aic_portfolio_url.rstrip("/") == old_shared_url
         ):
             account.aic_portfolio_url = direct_aic_url
+    seed_vanguard_money_market_security(db)
     db.commit()
 
 
@@ -154,7 +193,11 @@ def rematch_unmatched_transactions(db: Session) -> int:
         row = db.scalar(
             select(ImportRow).where(ImportRow.row_hash == transaction.source_row_hash)
         )
-        if row and row.warnings == "Dividend security was not matched to the imported portfolio":
+        if row and row.warnings and (
+            row.warnings == "Dividend security was not matched to the imported portfolio"
+            or "security match may need review" in row.warnings
+            or "security was not matched" in row.warnings
+        ):
             row.warnings = None
             affected_job_ids.add(row.import_job_id)
 

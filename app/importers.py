@@ -127,7 +127,11 @@ def parse_date(value: str, *, required: bool = False):
 def normalize_name(value: str) -> str:
     value = value.upper()
     value = re.sub(r"\(LSE:[^)]+\)", "", value)
-    value = re.sub(r"^(DIVIDEND|PURCHASE|SALE)\s+[\d,]+(?:\.\d+)?\s+", "", value)
+    value = re.sub(
+        r"^(DIVIDEND|PURCHASE|SALE|INCOME\s+PAYMENT|DISTRIBUTION)\s+[\d,]+(?:\.\d+)?\s+",
+        "",
+        value,
+    )
     value = re.sub(r"\bJ\s+P\s+MORGAN\b", "JPMORGAN", value)
     value = re.sub(r"\bJ\s+PMORGAN\b", "JPMORGAN", value)
     value = re.sub(r"\bLAWDEBENTURE\b", "LAW DEBENTURE", value)
