@@ -26,6 +26,7 @@ Already implemented:
 - AIC Income Builder import.
 - seeded Tim/Wendy accounts.
 - current holdings and planning income view.
+- account-first Holdings drill-down for identifying duplicate or distorted income rows.
 - actual income history.
 - built-in cash-statement coding for opening balances, account charges, cash withdrawals and gross interest.
 - basic tax-treatment labels.

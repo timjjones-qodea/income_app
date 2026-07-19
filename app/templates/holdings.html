@@ -1,23 +1,97 @@
 {% extends "base.html" %}
 {% block title %}Holdings · Retirement Income{% endblock %}
 {% block content %}
-<div class="page-heading"><div><p class="eyebrow">Latest snapshots</p><h1>{{ title or "Holdings & forward income" }}</h1><p>Current quantities paired with the highest-priority available income assumption.</p></div><a class="button secondary" href="/reports/forward-income.csv">Export CSV</a></div>
+<div class="page-heading"><div><p class="eyebrow">Latest snapshots</p><h1>{{ title or "Holdings drill-down" }}</h1><p>Start with each account total, then drill into the securities, units, values and income-per-unit behind the number.</p></div><a class="button secondary" href="/reports/forward-income.csv">Export CSV</a></div>
 <section class="panel help-panel">
   <div>
-    <h2>What this page tells you</h2>
-    <p>This is the planning view: current AJ Bell quantities multiplied by the best available income assumption. The Source column is important. AIC and manual assumptions are usually better planning inputs than raw trailing receipts if special dividends were paid.</p>
+    <h2>Use this to find reconciliation problems</h2>
+    <p>The account summary uses the same planning-income rows as the Dashboard. If a total looks too high, drill into that account and check for duplicate-looking securities, unexpectedly high income per share, fallback yields, or a source that includes special dividends.</p>
   </div>
   <ul class="plain-list">
-    <li><strong>ISA:</strong> tax-free income.</li>
-    <li><strong>SIPP:</strong> pension-wrapped income; withdrawals are the taxable event.</li>
-    <li><strong>GIA:</strong> Tim’s VCT GIA is treated as tax-free; Wendy’s GIA is unwrapped taxable income.</li>
+    <li><strong>Value</strong> comes from the latest AJ Bell holding snapshot.</li>
+    <li><strong>Prior dividend yield</strong> is planning income divided by current value.</li>
+    <li><strong>Income / unit</strong> is the annual dividend per share implied by the selected source.</li>
   </ul>
 </section>
-<section class="panel">
+
 {% if rows %}
-<div class="table-scroll"><table><thead><tr><th>Person</th><th>Account</th><th>Security</th><th class="numeric">Quantity</th><th class="numeric">Value</th><th class="numeric">Yield</th><th class="numeric">Forward income</th><th>Source</th></tr></thead>
-<tbody>{% for row in rows %}<tr><td>{{ row.person.name }}</td><td>{{ row.account.account_name }}<small class="block">{{ row.account.wrapper_type }}</small>{% if row.account.tax_treatment %}<small class="block">{{ row.account.tax_treatment }}</small>{% endif %}</td><td><strong>{{ row.security.ticker or "—" }}</strong><small class="block">{{ row.security.name }}</small></td><td class="numeric">{{ "{:,.2f}".format(row.quantity) }}</td><td class="numeric">{{ row.value|money }}</td><td class="numeric">{{ row.assumed_yield|percent }}</td><td class="numeric strong">{{ row.forward_income|money }}</td><td><span class="source">{{ row.source }}</span></td></tr>{% endfor %}</tbody>
-<tfoot><tr><td colspan="4">Total</td><td class="numeric">{{ total_value|default(0)|money }}</td><td></td><td class="numeric">{{ total_income|default(0)|money }}</td><td></td></tr></tfoot></table></div>
-{% else %}<div class="empty"><strong>No holdings to show</strong><p>Import and commit an AJ Bell portfolio CSV first, then add its cash statement.</p></div>{% endif %}
+<section class="panel">
+  <div class="panel-heading"><h2>Account totals</h2><span>{{ account_summaries|length }} accounts</span></div>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Account</th><th>Tax treatment</th><th class="numeric">Holdings</th><th class="numeric">Total value</th><th class="numeric">Prior dividend yield</th><th class="numeric">Planning income</th><th>Data source check</th><th></th></tr></thead>
+      <tbody>
+        {% for summary in account_summaries %}
+        <tr class="{% if summary.has_fallback %}row-warning{% endif %}">
+          <td><strong>{{ summary.account.account_name }}</strong><small class="block">{{ summary.account.owner.name }} · {{ summary.account.wrapper_type }}</small></td>
+          <td>{{ summary.account.tax_treatment or "Not set" }}{% if summary.account.notes %}<small class="block">{{ summary.account.notes }}</small>{% endif %}</td>
+          <td class="numeric">{{ summary.security_count }}</td>
+          <td class="numeric strong"><a href="#account-{{ summary.account.id }}">{{ summary.value|money }}</a></td>
+          <td class="numeric">{{ summary.income_yield|percent }}</td>
+          <td class="numeric strong">{{ summary.income|money }}</td>
+          <td>{% if summary.sources %}{% for source in summary.sources %}<span class="source source-line">{{ source }}</span>{% endfor %}{% else %}<span class="muted">No holdings loaded</span>{% endif %}</td>
+          <td><a class="button secondary compact-button" href="#account-{{ summary.account.id }}">Drill down</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr><td colspan="3">Household total</td><td class="numeric">{{ total_value|default(0)|money }}</td><td class="numeric">{{ (total_income / total_value if total_value else 0)|percent }}</td><td class="numeric">{{ total_income|default(0)|money }}</td><td colspan="2"></td></tr></tfoot>
+    </table>
+  </div>
 </section>
+
+<section class="account-drilldowns">
+  {% for summary in account_summaries %}
+  <details class="panel drilldown-card" id="account-{{ summary.account.id }}">
+    <summary>
+      <span><strong>{{ summary.account.account_name }}</strong><small>{{ summary.security_count }} holdings · {{ summary.value|money }} value · {{ summary.income|money }} planning income · {{ summary.income_yield|percent }} yield</small></span>
+    </summary>
+    {% if summary.rows %}
+    <div class="table-scroll drilldown-table">
+      <table>
+        <thead><tr><th>Security</th><th class="numeric">Shares / units</th><th class="numeric">Value</th><th class="numeric">Income / unit</th><th class="numeric">Yield</th><th class="numeric">Planning income</th><th>Source</th></tr></thead>
+        <tbody>
+          {% for row in summary.rows %}
+          <tr class="{% if 'fallback' in row.source|lower %}row-warning{% endif %}">
+            <td><strong>{{ row.security.ticker or "—" }}</strong><small class="block">{{ row.security.name }}</small></td>
+            <td class="numeric">{{ "{:,.2f}".format(row.quantity) }}</td>
+            <td class="numeric">{{ row.value|money }}</td>
+            <td class="numeric">{% if row.annual_dps is not none %}{{ "{:.4f}p".format(row.annual_dps * 100) }}{% else %}—{% endif %}</td>
+            <td class="numeric">{{ row.assumed_yield|percent }}</td>
+            <td class="numeric strong">{{ row.forward_income|money }}</td>
+            <td><span class="source">{{ row.source }}</span>{% if 'fallback' in row.source|lower %}<small class="block warning">Placeholder assumption — review this row first.</small>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot><tr><td>Total</td><td></td><td class="numeric">{{ summary.value|money }}</td><td></td><td class="numeric">{{ summary.income_yield|percent }}</td><td class="numeric">{{ summary.income|money }}</td><td></td></tr></tfoot>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty"><strong>No holdings loaded for this account</strong><p>Import and commit this account's AJ Bell portfolio CSV.</p></div>
+    {% endif %}
+  </details>
+  {% endfor %}
+</section>
+{% else %}
+<section class="panel"><div class="empty"><strong>No holdings to show</strong><p>Import and commit an AJ Bell portfolio CSV first, then add its cash statement.</p></div></section>
+{% endif %}
+<script>
+(() => {
+  const openTarget = () => {
+    if (!window.location.hash) return;
+    const target = document.querySelector(window.location.hash);
+    if (target && target.tagName.toLowerCase() === "details") {
+      target.open = true;
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+  document.querySelectorAll('a[href^="#account-"]').forEach((link) => {
+    link.addEventListener("click", () => {
+      const target = document.querySelector(link.getAttribute("href"));
+      if (target && target.tagName.toLowerCase() === "details") target.open = true;
+    });
+  });
+  window.addEventListener("hashchange", openTarget);
+  openTarget();
+})();
+</script>
 {% endblock %}

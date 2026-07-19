@@ -343,13 +343,47 @@ def import_rollback(job_id: int, db: Session = Depends(get_db)):
     return RedirectResponse(f"/imports/{job_id}", status_code=303)
 
 
+def holding_account_summaries(db: Session, rows: list[dict]) -> list[dict]:
+    accounts = db.scalars(select(Account).order_by(Account.account_name)).all()
+    rows_by_account: dict[int, list[dict]] = {account.id: [] for account in accounts}
+    for row in rows:
+        rows_by_account.setdefault(row["account"].id, []).append(row)
+    account_summaries = []
+    for account in accounts:
+        account_rows = sorted(
+            rows_by_account.get(account.id, []),
+            key=lambda item: (
+                item["security"].name.upper(),
+                item["security"].ticker or "",
+            ),
+        )
+        value = sum((row["value"] for row in account_rows), Decimal("0"))
+        income = sum((row["forward_income"] for row in account_rows), Decimal("0"))
+        sources = sorted({row["source"] for row in account_rows})
+        account_summaries.append(
+            {
+                "account": account,
+                "rows": account_rows,
+                "security_count": len(account_rows),
+                "value": value,
+                "income": income,
+                "income_yield": income / value if value else Decimal("0"),
+                "sources": sources,
+                "has_fallback": any("fallback" in row["source"].lower() for row in account_rows),
+            }
+        )
+    return account_summaries
+
+
 @app.get("/holdings", response_class=HTMLResponse)
 def holdings_page(request: Request, db: Session = Depends(get_db)):
     rows = forward_income_rows(db)
+    account_summaries = holding_account_summaries(db, rows)
     return render(
         request,
         "holdings.html",
         rows=rows,
+        account_summaries=account_summaries,
         total_value=sum((row["value"] for row in rows), Decimal("0")),
         total_income=sum((row["forward_income"] for row in rows), Decimal("0")),
     )
@@ -385,7 +419,16 @@ def income_history(
 
 @app.get("/income/forward", response_class=HTMLResponse)
 def forward_income(request: Request, db: Session = Depends(get_db)):
-    return render(request, "holdings.html", rows=forward_income_rows(db), title="Forward income")
+    rows = forward_income_rows(db)
+    return render(
+        request,
+        "holdings.html",
+        rows=rows,
+        account_summaries=holding_account_summaries(db, rows),
+        total_value=sum((row["value"] for row in rows), Decimal("0")),
+        total_income=sum((row["forward_income"] for row in rows), Decimal("0")),
+        title="Forward income",
+    )
 
 
 @app.get("/securities", response_class=HTMLResponse)

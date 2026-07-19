@@ -33,6 +33,7 @@ p { color: var(--muted); line-height: 1.55; }
 .button, button { border: 0; border-radius: 6px; background: var(--green); color: #fff; padding: 11px 17px; font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; }
 .button:hover { text-decoration: none; background: #0d4833; }
 .button.secondary { background: #fff; color: var(--green); border: 1px solid #adc6ba; }
+.compact-button { padding: 7px 10px; font-size: 12px; white-space: nowrap; }
 .button-danger { background: #fff; color: var(--red); border: 1px solid #d9aaa7; }
 button:disabled { opacity: .45; cursor: not-allowed; }
 .actions { display: flex; gap: 10px; }
@@ -69,6 +70,7 @@ tfoot td { font-weight: 700; background: #f8faf8; }
 .strong { font-weight: 750; }
 .block { display: block; color: var(--muted); margin-top: 3px; }
 .source, .asset { display: inline-block; padding: 4px 8px; border-radius: 20px; background: var(--green-light); color: var(--green); font-size: 11px; }
+.source-line { display: block; width: fit-content; margin: 0 0 4px; }
 .status { display: inline-block; padding: 4px 8px; border-radius: 20px; background: #edf0ee; font-size: 11px; font-weight: 700; }
 .status-committed, .status-matched { color: var(--green); background: var(--green-light); }
 .status-staged { color: #75520e; background: #fff0cf; }
@@ -98,6 +100,7 @@ textarea { min-height: 72px; resize: vertical; }
 .empty { text-align: center; color: var(--muted); padding: 34px; }
 .notice { margin: 0 0 22px; padding: 13px 17px; background: #fff5dc; border-left: 3px solid var(--gold); }
 .row-error { background: #fff9f8; }
+.row-warning { background: #fffdf5; }
 .error { color: var(--red); }.warning { color: #8a6217; }.ok { color: var(--green); }
 .json { display: block; max-width: 780px; white-space: normal; overflow-wrap: anywhere; color: #425149; font-size: 11px; line-height: 1.4; }
 .filters { display: flex; align-items: end; gap: 12px; }
@@ -114,6 +117,11 @@ dt { color: var(--muted); } dd { margin: 0; }
 .current-assumption { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 6px; background: var(--green-light); }
 .current-assumption span, .current-assumption small { color: var(--muted); font-size: 11px; }
 details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); font-size: 13px; font-weight: 700; }
+.account-drilldowns { display: grid; gap: 16px; }
+.drilldown-card { margin-bottom: 0; scroll-margin-top: 90px; }
+.drilldown-card summary { display: flex; align-items: center; justify-content: space-between; list-style-position: inside; font-size: 16px; }
+.drilldown-card summary small { display: block; margin-top: 5px; color: var(--muted); font-weight: 500; }
+.drilldown-table { margin-top: 18px; }
 .form-stack { display: grid; gap: 11px; padding-top: 15px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .mapping-row { display: grid; grid-template-columns: 2fr 2fr auto; gap: 10px; margin-top: 10px; }
