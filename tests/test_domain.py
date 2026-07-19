@@ -76,6 +76,7 @@ def test_historic_income_by_year(db, account):
         [
             (date(2024, 12, 1), "DIVIDEND", "100"),
             (date(2024, 12, 2), "INTEREST", "10"),
+            (date(2024, 12, 3), "GROSS_INTEREST", "2"),
             (date(2025, 1, 2), "SELL", "999"),
         ]
     ):
@@ -93,8 +94,8 @@ def test_historic_income_by_year(db, account):
         )
     db.commit()
     rows = historic_income_rows(db)
-    assert len(rows) == 2
-    assert sum(row["total"] for row in rows if row["calendar_year"] == 2024) == 110
+    assert len(rows) == 3
+    assert sum(row["total"] for row in rows if row["calendar_year"] == 2024) == 112
 
 
 def add_holding(db, account, security, job, value="10000", quantity="1000"):
@@ -171,4 +172,3 @@ def test_reconciliation_flags_amount_mismatch(db, account):
     row = reconciliation_rows(db)[0]
     assert row["expected"] == Decimal("100.00")
     assert row["status"] == "Amount mismatch"
-

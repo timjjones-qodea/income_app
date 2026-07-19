@@ -39,6 +39,9 @@ class ImportErrorDetail(ValueError):
     pass
 
 
+SECURITY_MATCH_REQUIRED_TYPES = {"DIVIDEND", "BUY", "SELL"}
+
+
 def create_import_job(
     db: Session, filename: str, content: bytes, account_id: int | None
 ) -> ImportJob:
@@ -460,7 +463,7 @@ def forward_income_rows(db: Session) -> list[dict]:
 def historic_income_rows(db: Session) -> list[dict]:
     transactions = db.scalars(
         select(Transaction)
-        .where(Transaction.transaction_type.in_(["DIVIDEND", "INTEREST"]))
+        .where(Transaction.transaction_type.in_(["DIVIDEND", "INTEREST", "GROSS_INTEREST"]))
         .order_by(Transaction.transaction_date.desc())
     ).all()
     return [
@@ -475,7 +478,9 @@ def historic_income_rows(db: Session) -> list[dict]:
                 Decimal(item.net_amount) if item.transaction_type == "DIVIDEND" else Decimal("0")
             ),
             "interest": (
-                Decimal(item.net_amount) if item.transaction_type == "INTEREST" else Decimal("0")
+                Decimal(item.net_amount)
+                if item.transaction_type in {"INTEREST", "GROSS_INTEREST"}
+                else Decimal("0")
             ),
             "total": Decimal(item.net_amount),
             "quantity": Decimal(item.quantity) if item.quantity is not None else None,

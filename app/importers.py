@@ -196,6 +196,10 @@ def normalize_holding(row: dict[str, str]) -> tuple[dict[str, Any], list[str], l
 
 
 TYPE_KEYWORDS = {
+    "GROSS_INTEREST": ("gross interest",),
+    "ACCOUNT_CHARGE": ("account charge",),
+    "CASH_WITHDRAWAL": ("cash withdrawal",),
+    "OPENING_BALANCE": ("balance b/f", "balance brought forward"),
     "DIVIDEND": ("dividend", "distribution", "income payment"),
     "INTEREST": ("interest",),
     "BUY": ("purchase", "bought", "buy"),
@@ -208,12 +212,30 @@ TYPE_KEYWORDS = {
 }
 
 
+def extract_account_code(description: str) -> str | None:
+    match = re.search(r"\b([A-Z]{4}\d[A-Z0-9]{2})\b", description.upper())
+    return match.group(1) if match else None
+
+
 def classify_transaction(explicit_type: str, description: str) -> str:
     haystack = f"{explicit_type} {description}".lower()
     for transaction_type, words in TYPE_KEYWORDS.items():
         if any(word in haystack for word in words):
             return transaction_type
     return "OTHER"
+
+
+def cash_statement_rule(description: str) -> tuple[str | None, str | None]:
+    text = description.strip()
+    if re.match(r"^balance\s+b/f\b", text, re.IGNORECASE):
+        return "OPENING_BALANCE", None
+    if re.match(r"^account\s+charge\b", text, re.IGNORECASE):
+        return "ACCOUNT_CHARGE", extract_account_code(text)
+    if re.match(r"^cash\s+withdrawal\b", text, re.IGNORECASE):
+        return "CASH_WITHDRAWAL", None
+    if re.match(r"^gross\s+interest\s+to\b", text, re.IGNORECASE):
+        return "GROSS_INTEREST", None
+    return None, None
 
 
 def normalize_transaction(row: dict[str, str]) -> tuple[dict[str, Any], list[str], list[str]]:
@@ -298,7 +320,8 @@ def normalize_cash_statement(
         receipt = payment = net_amount = Decimal("0")
         errors.append(str(exc))
 
-    transaction_type = classify_transaction("", description)
+    cash_rule_type, source_account_code = cash_statement_rule(description)
+    transaction_type = cash_rule_type or classify_transaction("", description)
     quantity, security_name = cash_dividend_details(description)
     if transaction_type == "DIVIDEND" and not security_name:
         warnings.append("Could not extract the security name from this dividend")
@@ -316,6 +339,7 @@ def normalize_cash_statement(
         "settlement_date": settlement_date.isoformat() if settlement_date else None,
         "transaction_type": transaction_type,
         "description": description,
+        "source_account_code": source_account_code,
         "name": security_name,
         "ticker": None,
         "isin": None,
@@ -323,7 +347,7 @@ def normalize_cash_statement(
         "quantity": str(quantity) if quantity is not None else None,
         "price": None,
         "gross_amount": str(receipt) if receipt else None,
-        "fees": str(-net_amount if transaction_type == "FEE" and net_amount < 0 else 0),
+        "fees": str(-net_amount if transaction_type == "ACCOUNT_CHARGE" and net_amount < 0 else 0),
         "tax": "0",
         "net_amount": str(net_amount),
         "currency": "GBP",

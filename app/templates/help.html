@@ -39,6 +39,18 @@
 </section>
 
 <section class="panel">
+  <div class="panel-heading"><h2>Built-in AJ Bell cash-statement rules</h2></div>
+  <div class="definition-grid">
+    <article><strong>BALANCE B/F *</strong><p>Opening balance carried forward. Kept for audit context, not treated as income or movement.</p></article>
+    <article><strong>Account charge … account code</strong><p>Coded as account charge. The AJ Bell account code, for example ABWD2VD, is extracted for cash-activity reporting.</p></article>
+    <article><strong>Cash Withdrawal</strong><p>Coded as cash withdrawal so drawings can be reported separately from income.</p></article>
+    <article><strong>Gross interest to date</strong><p>Coded as gross interest and included in the Income page interest total.</p></article>
+    <article><strong>Dividend quantity + name</strong><p>Coded as dividend and matched to the imported security holding.</p></article>
+  </div>
+  <p class="hint">These rows no longer appear as unmatched securities unless they are genuine dividend, buy or sell rows requiring a security match.</p>
+</section>
+
+<section class="panel">
   <div class="panel-heading"><h2>Income and tax interpretation</h2></div>
   <table>
     <thead><tr><th>Account</th><th>Wrapper</th><th>Planning interpretation</th></tr></thead>

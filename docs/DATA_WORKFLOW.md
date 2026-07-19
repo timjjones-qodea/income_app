@@ -47,6 +47,18 @@ This creates:
 
 The Income page depends on this file. The app intentionally rejects an AJ Bell cash statement until the matching account has a committed AJ Bell portfolio import, because dividend descriptions are matched to the securities created from holdings.
 
+Built-in AJ Bell cash-statement rules:
+
+| Description pattern | Code | Treatment |
+| --- | --- | --- |
+| `BALANCE B/F *` | `OPENING_BALANCE` | Opening balance brought forward. Kept for audit context; not treated as income, charge or security movement. |
+| `Account charge for shares - <month> - <account code>` | `ACCOUNT_CHARGE` | Account charge. The AJ Bell account code, for example `ABWD2VD`, is extracted for cash-activity reporting. |
+| `Cash Withdrawal` | `CASH_WITHDRAWAL` | Cash drawing/withdrawal. Reportable separately from dividend and interest income. |
+| `Gross interest to <date>` | `GROSS_INTEREST` | Gross cash interest. Included in Income as interest. |
+| `Dividend <quantity> <security name>` | `DIVIDEND` | Matched to the imported holding/security where possible. |
+
+Only security-bearing rows such as dividends, buys and sells are shown on Securities as unmatched. Opening balances, account charges, cash withdrawals and gross interest are normal cash-ledger rows and do not need manual security mapping.
+
 ### 3. AIC Income Builder export
 
 Optional but useful for investment trusts.
@@ -99,6 +111,7 @@ After each import:
 
 - Check the import detail page for validation errors and warnings.
 - Check Securities for unmatched transaction descriptions.
+- Check the cash activity export for charges, withdrawals, opening balances and gross interest.
 - Check Income for missing expected dividends.
 - Check Holdings for implausible fallback-yield rows.
 - Prefer manual assumptions for securities where the calculated source says fallback yield.

@@ -15,6 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db, init_db
+from app.importers import extract_account_code
 from app.models import (
     Account,
     ImportJob,
@@ -26,6 +27,7 @@ from app.models import (
 from app.security_matching import save_manual_mapping
 from app.services import (
     ImportErrorDetail,
+    SECURITY_MATCH_REQUIRED_TYPES,
     aggregate_income,
     commit_import,
     create_import_job,
@@ -212,7 +214,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             db.scalar(
                 select(func.count()).select_from(Transaction).where(
                     Transaction.security_id.is_(None),
-                    Transaction.transaction_type.in_(["DIVIDEND", "BUY", "SELL"]),
+                    Transaction.transaction_type.in_(SECURITY_MATCH_REQUIRED_TYPES),
                 )
             )
             or 0
@@ -398,7 +400,12 @@ def securities_page(request: Request, db: Session = Depends(get_db)):
     for item in assumptions:
         assumption_by_security.setdefault(item.security_id, item)
     unmatched = db.scalars(
-        select(Transaction).where(Transaction.security_id.is_(None)).order_by(Transaction.id.desc())
+        select(Transaction)
+        .where(
+            Transaction.security_id.is_(None),
+            Transaction.transaction_type.in_(SECURITY_MATCH_REQUIRED_TYPES),
+        )
+        .order_by(Transaction.id.desc())
     ).all()
     return render(
         request,
@@ -579,11 +586,62 @@ def report_forward_income(db: Session = Depends(get_db)):
 
 @app.get("/reports/unmatched-securities.csv")
 def report_unmatched(db: Session = Depends(get_db)):
-    rows = db.scalars(select(Transaction).where(Transaction.security_id.is_(None))).all()
+    rows = db.scalars(
+        select(Transaction).where(
+            Transaction.security_id.is_(None),
+            Transaction.transaction_type.in_(SECURITY_MATCH_REQUIRED_TYPES),
+        )
+    ).all()
     return csv_response(
         "unmatched_securities.csv",
         ["transaction_id", "date", "description", "type", "amount"],
         [[row.id, row.transaction_date, row.description, row.transaction_type, row.net_amount] for row in rows],
+    )
+
+
+@app.get("/reports/cash-activity.csv")
+def report_cash_activity(db: Session = Depends(get_db)):
+    rows = db.scalars(
+        select(Transaction)
+        .where(
+            Transaction.transaction_type.in_(
+                [
+                    "ACCOUNT_CHARGE",
+                    "CASH_WITHDRAWAL",
+                    "GROSS_INTEREST",
+                    "OPENING_BALANCE",
+                ]
+            )
+        )
+        .order_by(Transaction.transaction_date, Transaction.id)
+    ).all()
+    return csv_response(
+        "cash_activity.csv",
+        [
+            "date",
+            "person",
+            "account",
+            "wrapper",
+            "source_account_code",
+            "type",
+            "description",
+            "amount",
+            "fees",
+        ],
+        [
+            [
+                row.transaction_date,
+                row.account.owner.name,
+                row.account.account_name,
+                row.account.wrapper_type,
+                extract_account_code(row.description) or "",
+                row.transaction_type,
+                row.description,
+                row.net_amount,
+                row.fees,
+            ]
+            for row in rows
+        ],
     )
 
 

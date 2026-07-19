@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from decimal import Decimal
 
 from app.importers import (
     AIC_PORTFOLIO_INCOME,
+    AJ_BELL_CASH_STATEMENT,
     AJ_BELL_HOLDINGS,
     AJ_BELL_TRANSACTIONS,
     classify_transaction,
@@ -68,3 +70,29 @@ def test_aic_portfolio_income_export(db, account, tmp_path, monkeypatch):
     snapshot = db.query(AicPortfolioIncomeSnapshot).one()
     assert snapshot.income_received == Decimal("3183.55")
     assert snapshot.shares_held == Decimal("14570")
+
+
+def test_aj_bell_cash_statement_rules_are_normalised():
+    content = (
+        b"Date,Description,Reference,Settlement date,Receipt (GBP),Payment (GBP),Balance (GBP)\n"
+        b"01/07/2025,BALANCE B/F *,-,-,,,1000.00\n"
+        b"30/06/2026,Account charge for shares - Jun 2026 - ABWD2VD,-,-,,4.99,995.01\n"
+        b"30/06/2026,Cash Withdrawal,-,-,,100.00,895.01\n"
+        b"30/06/2026,Gross interest to 30/06/26,-,-,1.23,,896.24\n"
+    )
+    headers, _rows = read_csv(content)
+    assert detect_file_type(headers) == AJ_BELL_CASH_STATEMENT
+    staged, errors, warnings = stage_rows(content, AJ_BELL_CASH_STATEMENT, 1)
+    assert errors == 0
+    assert warnings == 0
+    normalised = [json.loads(row["normalized_json"]) for row in staged]
+    assert [row["transaction_type"] for row in normalised] == [
+        "OPENING_BALANCE",
+        "ACCOUNT_CHARGE",
+        "CASH_WITHDRAWAL",
+        "GROSS_INTEREST",
+    ]
+    assert normalised[1]["source_account_code"] == "ABWD2VD"
+    assert normalised[1]["fees"] == "4.99"
+    assert normalised[2]["net_amount"] == "-100.00"
+    assert normalised[3]["net_amount"] == "1.23"

@@ -27,6 +27,7 @@ Already implemented:
 - seeded Tim/Wendy accounts.
 - current holdings and planning income view.
 - actual income history.
+- built-in cash-statement coding for opening balances, account charges, cash withdrawals and gross interest.
 - basic tax-treatment labels.
 - manual security income assumptions.
 - import staging, duplicate safety and rollback.
@@ -88,6 +89,7 @@ Goal: make data quality issues obvious and fixable.
 Tasks:
 
 - Add account-level import status cards.
+- Add account-code administration so AJ Bell codes such as ABWD2VD can be formally tied to known accounts rather than parsed only from cash-statement descriptions.
 - Add unmatched dividend remediation flow from the import detail page.
 - Add bulk mapping for repeated AJ Bell dividend descriptions.
 - Add filters to import history.
@@ -107,6 +109,7 @@ Tasks:
 - Model cash buffer drawdown.
 - Add inflation adjustment.
 - Add charts for annual and monthly income.
+- Add cash-activity visualisations for charges, withdrawals and gross interest by account.
 
 ## Medium-term slice 6: AIC workflow improvements
 

@@ -7,7 +7,10 @@
     <h2>Actual income, not forecast income</h2>
     <p>This page comes from AJ Bell cash statements. It is the audit trail of money actually paid into each account. Use it to check dividend timing, total received income, payment-time quantities and tax-year totals.</p>
   </div>
-  <a class="button secondary" href="/reports/historic-income-by-account.csv">Export by account</a>
+  <div class="actions">
+    <a class="button secondary" href="/reports/historic-income-by-account.csv">Export by account</a>
+    <a class="button secondary" href="/reports/cash-activity.csv">Export cash activity</a>
+  </div>
 </section>
 <section class="panel">
   <form method="get" class="filters"><label>Calendar year<input name="calendar_year" type="number" value="{{ request.query_params.get('calendar_year','') }}"></label><label>UK tax year<input name="tax_year" placeholder="2025/26" value="{{ request.query_params.get('tax_year','') }}"></label><button>Apply filters</button><a href="/income/history">Clear</a></form>

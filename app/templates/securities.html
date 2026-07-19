@@ -13,6 +13,16 @@
     <li>Override stale or distorted income data.</li>
   </ul>
 </section>
+<section class="panel">
+  <div class="panel-heading"><h2>Built-in AJ Bell cash-statement rules</h2></div>
+  <div class="definition-grid">
+    <article><strong>BALANCE B/F *</strong><p>Coded as opening balance. It is retained for audit context, but it is not treated as income, a charge or a security movement.</p></article>
+    <article><strong>Account charge … ABWD2VD</strong><p>Coded as account charge. The AJ Bell account code is extracted from the description so charges can be reported by account code later.</p></article>
+    <article><strong>Cash Withdrawal</strong><p>Coded as cash withdrawal. It is not a security-matching issue.</p></article>
+    <article><strong>Gross interest to date</strong><p>Coded as gross interest and included in Income as account interest.</p></article>
+    <article><strong>Dividend quantity + name</strong><p>Coded as dividend and matched to the imported holding by security name.</p></article>
+  </div>
+</section>
 {% if unmatched %}<section class="panel attention"><div class="panel-heading"><h2>Unmatched transaction descriptions</h2><a href="/reports/unmatched-securities.csv">Export</a></div>
 {% for item in unmatched %}<form action="/securities/{{ securities[0].id if securities else 0 }}/map" method="post" class="mapping-row"><input name="external_name" value="{{ item.description }}" readonly><select onchange="this.form.action='/securities/'+this.value+'/map'">{% for security in securities %}<option value="{{ security.id }}">{{ security.ticker or "—" }} · {{ security.name }}</option>{% endfor %}</select><button>Save mapping</button></form>{% endfor %}</section>{% endif %}
 <section class="security-grid">

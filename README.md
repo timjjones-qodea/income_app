@@ -40,6 +40,7 @@ Tax labels are currently descriptive. Detailed tax calculation is a planned buil
 - Import rollback for committed files.
 - AJ Bell portfolio import for current holdings.
 - AJ Bell cash statement import for actual dividends, interest, charges and cash movements.
+- Built-in AJ Bell cash-statement rules for opening balances, account charges, cash withdrawals and gross interest.
 - AIC Income Builder portfolio import for trailing regular income planning.
 - Older generic AJ Bell transaction and dividend-event imports retained for compatibility.
 - Security matching by ISIN, SEDOL, ticker, normalised name and manual alias.
@@ -145,6 +146,7 @@ Dividend-per-share values must use pounds, not pence. For example, 5.5p should b
 - `/reports/historic-income-by-security.csv`
 - `/reports/forward-income.csv`
 - `/reports/unmatched-securities.csv`
+- `/reports/cash-activity.csv`
 - `/reports/dividend-reconciliation.csv`
 
 ## Tests
