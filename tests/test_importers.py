@@ -11,10 +11,12 @@ from app.importers import (
     AJ_BELL_TRANSACTIONS,
     classify_transaction,
     detect_file_type,
+    normalize_name,
     read_csv,
     stage_rows,
 )
-from app.models import AicPortfolioIncomeSnapshot
+from app.models import AicPortfolioIncomeSnapshot, Security
+from app.security_matching import match_security
 from app.services import commit_import, create_import_job
 
 
@@ -96,3 +98,46 @@ def test_aj_bell_cash_statement_rules_are_normalised():
     assert normalised[1]["fees"] == "4.99"
     assert normalised[2]["net_amount"] == "-100.00"
     assert normalised[3]["net_amount"] == "1.23"
+
+
+def test_aj_bell_cash_statement_security_names_are_cleaned():
+    content = (
+        b"Date,Description,Reference,Settlement date,Receipt (GBP),Payment (GBP),Balance (GBP)\n"
+        b"30/06/2026,Dividend 16928 J PMORGAN GLOBAL GROWTH & INCOME P ORD GBP0.05,-,-,100.00,,1000.00\n"
+    )
+    staged, errors, warnings = stage_rows(content, AJ_BELL_CASH_STATEMENT, 1)
+    assert errors == 0
+    assert warnings == 0
+    normalised = json.loads(staged[0]["normalized_json"])
+    assert normalised["name"] == "J PMORGAN GLOBAL GROWTH & INCOME"
+    assert normalised["quantity"] == "16928"
+
+
+def test_aj_bell_transaction_security_names_are_cleaned():
+    content = (
+        b"Date,Type,Description,Amount\n"
+        b"15-Jan-2025,Purchase,\"Purchase 236,116.3582 Vanguard Stlg S/T Mny Mkts A GBP Acc\",-1000.00\n"
+    )
+    staged, errors, _warnings = stage_rows(content, AJ_BELL_TRANSACTIONS, 1)
+    assert errors == 0
+    normalised = json.loads(staged[0]["normalized_json"])
+    assert normalised["transaction_type"] == "BUY"
+    assert normalised["name"] == "Vanguard Stlg S/T Mny Mkts A GBP"
+    assert normalised["quantity"] == "236116.3582"
+
+
+def test_aj_bell_description_matching_handles_common_abbreviations(db):
+    securities = [
+        "JPMorgan Global Growth & Income",
+        "Law Debenture Corporation",
+        "Vanguard Sterling Short-Term Money Market",
+        "City of London Investment Trust",
+    ]
+    for name in securities:
+        db.add(Security(name=name, asset_type="Investment Trust", currency="GBP"))
+    db.commit()
+
+    assert match_security(db, name="Dividend 16928 J PMORGAN GLOBAL GROWTH & INCOME P ORD GBP0.05").name == "JPMorgan Global Growth & Income"
+    assert match_security(db, name="Dividend 10596 LAWDEBENTURE ORD GBP 0.05").name == "Law Debenture Corporation"
+    assert match_security(db, name="Purchase 236,116.3582 Vanguard Stlg S/T Mny Mkts A GBP Acc").name == "Vanguard Sterling Short-Term Money Market"
+    assert match_security(db, name="Purchase 1,105 City of London Ord").name == "City of London Investment Trust"

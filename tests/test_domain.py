@@ -8,11 +8,13 @@ from sqlalchemy import select
 from app.models import (
     DividendEvent,
     HoldingSnapshot,
+    ImportRow,
     ImportJob,
     Security,
     SecurityIncomeAssumption,
     Transaction,
 )
+from app.main import rematch_unmatched_transactions
 from app.security_matching import match_security, save_manual_mapping
 from app.services import (
     forward_income_rows,
@@ -172,3 +174,45 @@ def test_reconciliation_flags_amount_mismatch(db, account):
     row = reconciliation_rows(db)[0]
     assert row["expected"] == Decimal("100.00")
     assert row["status"] == "Amount mismatch"
+
+
+def test_rematch_unmatched_transactions_clears_resolved_warning(db, account):
+    job = add_job(db, account)
+    job.warning_count = 1
+    security = Security(
+        name="Law Debenture Corporation",
+        asset_type="Investment Trust",
+        currency="GBP",
+    )
+    db.add(security)
+    db.add(
+        ImportRow(
+            import_job_id=job.id,
+            row_number=12,
+            raw_json="{}",
+            normalized_json='{"description": "Dividend 10596 LAWDEBENTURE ORD GBP 0.05"}',
+            row_hash="receipt-row",
+            warnings="Dividend security was not matched to the imported portfolio",
+            committed=True,
+        )
+    )
+    db.add(
+        Transaction(
+            account_id=account.id,
+            security_id=None,
+            transaction_date=date(2026, 6, 30),
+            transaction_type="DIVIDEND",
+            description="Dividend 10596 LAWDEBENTURE ORD GBP 0.05",
+            net_amount=Decimal("100"),
+            source_import_id=job.id,
+            source_row_hash="receipt-row",
+        )
+    )
+    db.commit()
+
+    assert rematch_unmatched_transactions(db) == 1
+    transaction = db.scalar(select(Transaction))
+    row = db.scalar(select(ImportRow))
+    assert transaction.security_id == security.id
+    assert row.warnings is None
+    assert job.warning_count == 0

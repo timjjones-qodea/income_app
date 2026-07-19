@@ -32,7 +32,7 @@
       <tbody>
         <tr class="household-summary-row">
           <td class="expand-cell">
-            <button class="expand-row-button" type="button" aria-label="Expand household totals" aria-expanded="false" aria-controls="household-detail" data-target="household-detail">›</button>
+            <button class="expand-row-button" type="button" aria-label="Expand household totals" aria-expanded="false" aria-controls="household-detail" data-target="household-detail">⌄</button>
           </td>
           <td>
             <strong>Household total</strong>
@@ -87,7 +87,7 @@
     {% for summary in account_summaries %}
         <tr class="account-total-row {% if summary.has_fallback %}row-warning{% endif %}" id="account-{{ summary.account.id }}" data-sort-account="{{ summary.account.account_name|lower }}" data-sort-tax="{{ (summary.account.tax_treatment or 'Not set')|lower }}" data-sort-holdings="{{ summary.security_count }}" data-sort-value="{{ summary.value }}" data-sort-yield="{{ summary.income_yield }}" data-sort-income="{{ summary.income }}">
           <td class="expand-cell">
-            <button class="expand-row-button" type="button" aria-label="Expand {{ summary.account.account_name }}" aria-expanded="false" aria-controls="account-detail-{{ summary.account.id }}" data-target="account-detail-{{ summary.account.id }}">›</button>
+            <button class="expand-row-button" type="button" aria-label="Expand {{ summary.account.account_name }}" aria-expanded="false" aria-controls="account-detail-{{ summary.account.id }}" data-target="account-detail-{{ summary.account.id }}">⌄</button>
           </td>
           <td>
             <strong>{{ summary.account.account_name }}</strong>
@@ -151,7 +151,6 @@
     const target = document.getElementById(button.dataset.target);
     if (!target) return;
     button.setAttribute("aria-expanded", String(expanded));
-    button.textContent = expanded ? "⌄" : "›";
     target.hidden = !expanded;
   };
 

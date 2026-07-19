@@ -1,12 +1,60 @@
 from __future__ import annotations
 
 import re
+from difflib import SequenceMatcher
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.importers import normalize_name
 from app.models import Security, SecurityAlias
+
+
+COMMON_MATCH_STOPWORDS = {
+    "A",
+    "B",
+    "C",
+    "CLASS",
+    "GBP",
+    "GBX",
+    "ORD",
+    "P",
+}
+
+
+def _match_tokens(value: str) -> set[str]:
+    tokens = set()
+    for token in normalize_name(value).split():
+        if token in COMMON_MATCH_STOPWORDS:
+            continue
+        if len(token) > 4 and token.endswith("S"):
+            token = token[:-1]
+        tokens.add(token)
+    return tokens
+
+
+def _score_name_match(query: str, candidate: Security) -> float:
+    query_key = normalize_name(query)
+    candidate_key = normalize_name(candidate.name)
+    if not query_key or not candidate_key:
+        return 0
+    if query_key == candidate_key:
+        return 1
+
+    query_tokens = _match_tokens(query)
+    candidate_tokens = _match_tokens(candidate.name)
+    if not query_tokens or not candidate_tokens:
+        return 0
+
+    overlap = len(query_tokens & candidate_tokens)
+    precision = overlap / len(query_tokens)
+    recall = overlap / len(candidate_tokens)
+    token_score = (precision + recall) / 2
+    if query_tokens <= candidate_tokens or candidate_tokens <= query_tokens:
+        token_score = max(token_score, 0.93)
+
+    sequence_score = SequenceMatcher(None, query_key, candidate_key).ratio()
+    return max(token_score, sequence_score)
 
 
 def match_security(
@@ -44,6 +92,18 @@ def match_security(
         for candidate in candidates:
             if normalize_name(candidate.name) == alias_key:
                 return candidate
+        scored = sorted(
+            (
+                (_score_name_match(name, candidate), candidate)
+                for candidate in candidates
+            ),
+            key=lambda item: item[0],
+            reverse=True,
+        )
+        if scored and scored[0][0] >= 0.82 and (
+            len(scored) == 1 or scored[0][0] - scored[1][0] >= 0.08
+        ):
+            return scored[0][1]
     return None
 
 

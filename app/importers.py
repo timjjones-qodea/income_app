@@ -127,11 +127,22 @@ def parse_date(value: str, *, required: bool = False):
 def normalize_name(value: str) -> str:
     value = value.upper()
     value = re.sub(r"\(LSE:[^)]+\)", "", value)
+    value = re.sub(r"^(DIVIDEND|PURCHASE|SALE)\s+[\d,]+(?:\.\d+)?\s+", "", value)
+    value = re.sub(r"\bJ\s+P\s+MORGAN\b", "JPMORGAN", value)
+    value = re.sub(r"\bJ\s+PMORGAN\b", "JPMORGAN", value)
+    value = re.sub(r"\bLAWDEBENTURE\b", "LAW DEBENTURE", value)
+    value = re.sub(r"\bS\s*/\s*T\b", "SHORT TERM", value)
+    value = re.sub(r"\bSTLG\b", "STERLING", value)
+    value = re.sub(r"\bMNY\b", "MONEY", value)
+    value = re.sub(r"\bMKTS\b", "MARKETS", value)
+    value = re.sub(r"\bCORP\b", "CORPORATION", value)
     value = re.sub(r"\bINC\b", "INCOME", value)
     value = re.sub(r"\bGRWT\b", "GROWTH", value)
     value = re.sub(r"\bINV\b", "INVESTMENT", value)
     value = re.sub(r"\bVCT\s+([0-9]+)\b", r"VCT\1", value)
-    value = re.sub(r"\b(PLC|LIMITED|LTD|ORDINARY|ORD|INVESTMENT|TRUST)\b", "", value)
+    value = re.sub(r"\bGBP\s*[\d.]*\b", "", value)
+    value = re.sub(r"\bGBX\s*[\d.]*\b", "", value)
+    value = re.sub(r"\b(PLC|LIMITED|LTD|ORDINARY|ORD|P|ACC|INVESTMENT|TRUST|FUND)\b", "", value)
     return re.sub(r"[^A-Z0-9]+", " ", value).strip()
 
 
@@ -263,6 +274,7 @@ def normalize_transaction(row: dict[str, str]) -> tuple[dict[str, Any], list[str
     transaction_type = classify_transaction(first(row, "type", "transaction_type"), description)
     if transaction_type in {"DIVIDEND", "INTEREST"} and not ticker:
         warnings.append("Income row has no ticker; security match may need review")
+    quantity, security_name = transaction_security_details(description, transaction_type)
     normalized = {
         "transaction_date": transaction_date.isoformat() if transaction_date else None,
         "settlement_date": (
@@ -272,10 +284,11 @@ def normalize_transaction(row: dict[str, str]) -> tuple[dict[str, Any], list[str
         ),
         "transaction_type": transaction_type,
         "description": description,
+        "name": security_name,
         "ticker": ticker,
         "isin": first(row, "isin").upper() or None,
         "sedol": first(row, "sedol").upper() or None,
-        "quantity": str(parse_decimal(first(row, "quantity", "units")) or "") or None,
+        "quantity": str(parse_decimal(first(row, "quantity", "units")) or quantity or "") or None,
         "price": str(parse_decimal(first(row, "price")) or "") or None,
         "gross_amount": str(parse_decimal(first(row, "gross_amount", "gross")) or "") or None,
         "fees": str(parse_decimal(first(row, "fees", "commission")) or Decimal("0")),
@@ -286,18 +299,36 @@ def normalize_transaction(row: dict[str, str]) -> tuple[dict[str, Any], list[str
     return normalized, errors, warnings
 
 
-def cash_dividend_details(description: str) -> tuple[Decimal | None, str | None]:
-    match = re.match(r"^Dividend\s+([\d,]+)\s+(.+)$", description.strip(), re.IGNORECASE)
+def clean_aj_bell_security_name(value: str) -> str:
+    value = re.sub(
+        r"\s+(?:P\s+)?(?:ORD\s+)?GBP\s*[\d.]+\s*$",
+        "",
+        value,
+        flags=re.IGNORECASE,
+    )
+    value = re.sub(r"\s+(?:ORD|ACC)\s*$", "", value, flags=re.IGNORECASE)
+    return value.strip()
+
+
+def transaction_security_details(
+    description: str, transaction_type: str
+) -> tuple[Decimal | None, str | None]:
+    if transaction_type not in {"DIVIDEND", "BUY", "SELL"}:
+        return None, None
+    match = re.match(
+        r"^(?:Dividend|Purchase|Sale)\s+([\d,]+(?:\.\d+)?)\s+(.+)$",
+        description.strip(),
+        re.IGNORECASE,
+    )
     if not match:
         return None, None
     quantity = parse_decimal(match.group(1))
-    security_name = re.sub(
-        r"\s+(?:ORD\s+)?GBP[\d.]+\s*$",
-        "",
-        match.group(2),
-        flags=re.IGNORECASE,
-    ).strip()
+    security_name = clean_aj_bell_security_name(match.group(2))
     return quantity, security_name or None
+
+
+def cash_dividend_details(description: str) -> tuple[Decimal | None, str | None]:
+    return transaction_security_details(description, "DIVIDEND")
 
 
 def normalize_cash_statement(

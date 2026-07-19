@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -26,7 +27,7 @@ from app.models import (
     SecurityIncomeAssumption,
     Transaction,
 )
-from app.security_matching import save_manual_mapping
+from app.security_matching import match_security, save_manual_mapping
 from app.services import (
     ImportErrorDetail,
     SECURITY_MATCH_REQUIRED_TYPES,
@@ -132,6 +133,39 @@ def seed_reference_data(db: Session) -> None:
 def seed() -> None:
     with SessionLocal() as db:
         seed_reference_data(db)
+        rematch_unmatched_transactions(db)
+
+
+def rematch_unmatched_transactions(db: Session) -> int:
+    fixed = 0
+    affected_job_ids: set[int] = set()
+    transactions = db.scalars(
+        select(Transaction).where(
+            Transaction.security_id.is_(None),
+            Transaction.transaction_type.in_(SECURITY_MATCH_REQUIRED_TYPES),
+        )
+    ).all()
+    for transaction in transactions:
+        security = match_security(db, name=transaction.description)
+        if not security:
+            continue
+        transaction.security_id = security.id
+        fixed += 1
+        row = db.scalar(
+            select(ImportRow).where(ImportRow.row_hash == transaction.source_row_hash)
+        )
+        if row and row.warnings == "Dividend security was not matched to the imported portfolio":
+            row.warnings = None
+            affected_job_ids.add(row.import_job_id)
+
+    for job_id in affected_job_ids:
+        job = db.get(ImportJob, job_id)
+        if job:
+            job.warning_count = int(sum(1 for row in job.rows if row.warnings))
+
+    if fixed:
+        db.commit()
+    return fixed
 
 
 @asynccontextmanager
@@ -251,12 +285,21 @@ def imports_page(request: Request, db: Session = Depends(get_db)):
 
 @app.get("/imports/warnings", response_class=HTMLResponse)
 def import_warnings_page(request: Request, db: Session = Depends(get_db)):
-    rows = db.scalars(
+    warning_rows = db.scalars(
         select(ImportRow)
         .join(ImportRow.job)
         .where(ImportRow.warnings.is_not(None), ImportJob.status != "ROLLED_BACK")
         .order_by(ImportRow.id.desc())
     ).all()
+    rows = []
+    for row in warning_rows:
+        normalized = json.loads(row.normalized_json or "{}")
+        rows.append(
+            {
+                "row": row,
+                "description": normalized.get("description") or normalized.get("name") or "",
+            }
+        )
     return render(request, "import_warnings.html", rows=rows)
 
 
@@ -742,20 +785,24 @@ def report_import_warnings(db: Session = Depends(get_db)):
         .where(ImportRow.warnings.is_not(None), ImportJob.status != "ROLLED_BACK")
         .order_by(ImportRow.id.desc())
     ).all()
-    return csv_response(
-        "import_warnings.csv",
-        ["import_id", "file", "account", "line", "warnings", "committed"],
-        [
+    output_rows = []
+    for row in rows:
+        normalized = json.loads(row.normalized_json or "{}")
+        output_rows.append(
             [
                 row.import_job_id,
                 row.job.original_filename,
                 row.job.account.account_name if row.job.account else "",
                 row.row_number,
+                normalized.get("description") or normalized.get("name") or "",
                 row.warnings,
                 row.committed,
             ]
-            for row in rows
-        ],
+        )
+    return csv_response(
+        "import_warnings.csv",
+        ["import_id", "file", "account", "line", "description", "warnings", "committed"],
+        output_rows,
     )
 
 
