@@ -644,27 +644,64 @@ def aic_visualisation_context(
     }
     max_month_total = max(month_totals.values() or [Decimal("0")])
     chart_months = []
+    plot_width = 1080
+    plot_height = 300
+    plot_left = 56
+    plot_top = 24
+    slot_width = plot_width / len(months)
+    bar_width = slot_width * 0.64
+    baseline = plot_top + plot_height
     for month in months:
         total = month_totals[month]
         segments = []
+        y_cursor = baseline
         for label in ordered_components:
             amount = month_components[month].get(label, Decimal("0"))
             if not amount or not max_month_total:
                 continue
+            segment_height = float((amount / max_month_total) * Decimal(str(plot_height)))
+            y_cursor -= segment_height
             segments.append(
                 {
                     "label": label,
                     "amount": amount,
-                    "height": float((amount / max_month_total) * Decimal("100")),
+                    "height": segment_height,
+                    "y": y_cursor,
                     "color": color_by_component[label],
                 }
             )
+        index = len(chart_months)
         chart_months.append(
             {
                 "month": month,
                 "label": month_abbr[month.month],
                 "total": total,
                 "segments": segments,
+                "x": plot_left + (slot_width * index) + ((slot_width - bar_width) / 2),
+                "label_x": plot_left + (slot_width * index) + (slot_width / 2),
+                "bar_width": bar_width,
+            }
+        )
+    axis_values = []
+    if max_month_total:
+        for fraction in (Decimal("1"), Decimal("0.5"), Decimal("0")):
+            value = (max_month_total * fraction).quantize(Decimal("0.01"))
+            axis_values.append(
+                {
+                    "value": value,
+                    "y": plot_top + float((Decimal("1") - fraction) * Decimal(str(plot_height))),
+                }
+            )
+
+    monthly_table_rows = []
+    for label in ordered_components:
+        amounts = [month_components[month].get(label, Decimal("0")) for month in months]
+        monthly_table_rows.append(
+            {
+                "label": label,
+                "color": color_by_component[label],
+                "amounts": amounts,
+                "total": sum(amounts, Decimal("0")),
             }
         )
 
@@ -715,6 +752,16 @@ def aic_visualisation_context(
         "breakdown": component_key,
         "period_label": f"{month_abbr[start.month]} {start.year} – {month_abbr[end.month]} {end.year}",
         "chart_months": chart_months,
+        "chart_axis": axis_values,
+        "chart_width": plot_left + plot_width + 22,
+        "chart_height": baseline + 44,
+        "chart_plot_left": plot_left,
+        "chart_plot_top": plot_top,
+        "chart_plot_width": plot_width,
+        "chart_plot_height": plot_height,
+        "chart_baseline": baseline,
+        "monthly_table_rows": monthly_table_rows,
+        "monthly_table_totals": [month_totals[month] for month in months],
         "aic_components": aic_components,
         "actual_total": actual_total,
         "actual_dividends": actual_dividends,

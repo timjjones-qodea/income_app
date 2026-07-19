@@ -120,6 +120,19 @@ textarea { min-height: 72px; resize: vertical; }
 .chart-legend span { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 20px; background: #f6f8f6; }
 .chart-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
 .chart-legend small { color: var(--muted); font-weight: 650; }
+.income-chart-wrap { overflow-x: auto; padding: 4px 0 8px; }
+.income-svg-chart { display: block; min-width: 980px; width: 100%; height: auto; }
+.chart-grid-line { stroke: #e3e9e5; stroke-width: 1; }
+.chart-axis-line { stroke: #b7c3bc; stroke-width: 1.2; }
+.chart-axis-label { fill: var(--muted); font-size: 11px; font-weight: 650; }
+.chart-month-label { fill: var(--muted); font-size: 13px; font-weight: 650; }
+.chart-total-label { fill: var(--ink); font-size: 11px; font-weight: 750; }
+.chart-segment { opacity: .78; stroke: rgba(23,34,29,.28); stroke-width: 1; }
+.chart-segment:hover { opacity: .95; }
+.monthly-income-table { font-size: 12px; }
+.monthly-income-table th:first-child, .monthly-income-table td:first-child { position: sticky; left: 0; z-index: 1; min-width: 190px; background: #fff; }
+.monthly-income-table thead th:first-child, .monthly-income-table tfoot td:first-child { background: #f8faf8; }
+.legend-dot { display: inline-block; width: 10px; height: 10px; margin-right: 7px; border-radius: 50%; vertical-align: middle; }
 .security-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
 .security-card { margin: 0; }
 .security-title { display: flex; justify-content: space-between; gap: 14px; }

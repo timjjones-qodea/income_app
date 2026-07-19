@@ -51,18 +51,24 @@
     </div>
   </div>
   {% if chart_months %}
-  <div class="income-chart">
-    {% for month in chart_months %}
-    <div class="income-chart-month">
-      <div class="income-chart-value">{{ month.total|money }}</div>
-      <div class="income-chart-bar" aria-label="{{ month.label }} {{ month.total|money }}">
-        {% for segment in month.segments %}
-        <span class="income-chart-segment" title="{{ segment.label }} · {{ segment.amount|money }}" style="height: {{ '%.4f'|format(segment.height) }}%; background: {{ segment.color }}"></span>
-        {% endfor %}
-      </div>
-      <div class="income-chart-label">{{ month.label }}</div>
-    </div>
+  <div class="income-chart-wrap">
+  <svg class="income-svg-chart" viewBox="0 0 {{ chart_width }} {{ chart_height }}" role="img" aria-label="Monthly actual receipts stacked by {{ breakdown }}">
+    <rect x="0" y="0" width="{{ chart_width }}" height="{{ chart_height }}" fill="white"></rect>
+    {% for axis in chart_axis %}
+    <line x1="{{ chart_plot_left }}" y1="{{ axis.y }}" x2="{{ chart_plot_left + chart_plot_width }}" y2="{{ axis.y }}" class="chart-grid-line"></line>
+    <text x="0" y="{{ axis.y + 4 }}" class="chart-axis-label">{{ axis.value|money }}</text>
     {% endfor %}
+    <line x1="{{ chart_plot_left }}" y1="{{ chart_baseline }}" x2="{{ chart_plot_left + chart_plot_width }}" y2="{{ chart_baseline }}" class="chart-axis-line"></line>
+    {% for month in chart_months %}
+      {% for segment in month.segments %}
+      <rect x="{{ month.x }}" y="{{ segment.y }}" width="{{ month.bar_width }}" height="{{ segment.height }}" fill="{{ segment.color }}" class="chart-segment">
+        <title>{{ month.label }} · {{ segment.label }} · {{ segment.amount|money }}</title>
+      </rect>
+      {% endfor %}
+      <text x="{{ month.label_x }}" y="{{ chart_plot_top + chart_plot_height + 20 }}" text-anchor="middle" class="chart-month-label">{{ month.label }}</text>
+      <text x="{{ month.label_x }}" y="{{ chart_plot_top - 8 }}" text-anchor="middle" class="chart-total-label">{{ month.total|money }}</text>
+    {% endfor %}
+  </svg>
   </div>
   {% if component_legend %}
   <div class="chart-legend">
@@ -73,6 +79,34 @@
   {% endif %}
   {% else %}
   <div class="empty">No AJ Bell cash receipts are available for this period.</div>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <h2>Monthly receipt table</h2>
+      <p class="muted">Same data as the chart, laid out across months.</p>
+    </div>
+  </div>
+  {% if monthly_table_rows %}
+  <div class="table-scroll">
+    <table class="monthly-income-table">
+      <thead><tr><th>{{ "Account" if breakdown == "account" else "Security" }}</th>{% for month in chart_months %}<th class="numeric">{{ month.label }}</th>{% endfor %}<th class="numeric">Total</th></tr></thead>
+      <tbody>
+      {% for row in monthly_table_rows %}
+      <tr>
+        <td><span class="legend-dot" style="background: {{ row.color }}"></span>{{ row.label }}</td>
+        {% for amount in row.amounts %}<td class="numeric">{{ amount|money if amount else "—" }}</td>{% endfor %}
+        <td class="numeric strong">{{ row.total|money }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot><tr><td>Total</td>{% for amount in monthly_table_totals %}<td class="numeric">{{ amount|money }}</td>{% endfor %}<td class="numeric strong">{{ actual_total|money }}</td></tr></tfoot>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">No monthly receipt components are available for this selection.</div>
   {% endif %}
 </section>
 
