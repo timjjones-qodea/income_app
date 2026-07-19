@@ -246,7 +246,7 @@ def test_seeded_vanguard_money_market_maps_historic_rows(db, account):
             security_id=None,
             transaction_date=date(2026, 6, 30),
             transaction_type="DIVIDEND",
-            description="Dividend Grp 1 1148.34240 VANGUARD INVESTMENTS MONEY MKT FDS VANGUARD STERLING SHORT-TERM MONEY MARKET FUND",
+            description="Dividend Grp 1 1148.34240 VANGUARD INVESTMENTS MONEY MKT FDS VANGUARD S",
             net_amount=Decimal("100"),
             source_import_id=job.id,
             source_row_hash="vanguard-income",

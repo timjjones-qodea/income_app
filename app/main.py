@@ -98,6 +98,14 @@ def seed_vanguard_money_market_security(db: Session) -> None:
         save_manual_mapping(db, external_name, security.id)
 
 
+def match_transaction_security(db: Session, description: str) -> Security | None:
+    normalized_description = " ".join((description or "").upper().split())
+    if "VANGUARD INVESTMENTS MONEY MKT FDS" in normalized_description:
+        seed_vanguard_money_market_security(db)
+        return db.scalar(select(Security).where(Security.ticker == "VASSTAI"))
+    return match_security(db, name=description)
+
+
 def seed_reference_data(db: Session) -> None:
     wife = db.scalar(select(Person).where(Person.name == "Wife"))
     wendy = db.scalar(select(Person).where(Person.name == "Wendy"))
@@ -191,7 +199,7 @@ def rematch_unmatched_transactions(db: Session) -> int:
         )
     ).all()
     for transaction in transactions:
-        security = match_security(db, name=transaction.description)
+        security = match_transaction_security(db, transaction.description)
         if not security:
             continue
         transaction.security_id = security.id
@@ -617,6 +625,8 @@ def forward_income(request: Request, db: Session = Depends(get_db)):
 
 @app.get("/securities", response_class=HTMLResponse)
 def securities_page(request: Request, db: Session = Depends(get_db)):
+    seed_vanguard_money_market_security(db)
+    rematch_unmatched_transactions(db)
     securities = db.scalars(select(Security).order_by(Security.name)).all()
     assumptions = db.scalars(
         select(SecurityIncomeAssumption)
@@ -646,6 +656,13 @@ def securities_page(request: Request, db: Session = Depends(get_db)):
 @app.get("/securities/unmatched", response_class=HTMLResponse)
 def securities_unmatched(request: Request, db: Session = Depends(get_db)):
     return securities_page(request, db)
+
+
+@app.post("/securities/rematch")
+def rematch_securities(db: Session = Depends(get_db)):
+    seed_vanguard_money_market_security(db)
+    rematch_unmatched_transactions(db)
+    return RedirectResponse("/securities#unmatched", status_code=303)
 
 
 @app.post("/securities/{security_id}/map")
