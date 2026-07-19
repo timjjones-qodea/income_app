@@ -64,6 +64,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .quality-row strong { color: var(--gold); font-size: 21px; }
 .muted, .hint { color: var(--muted); font-size: 13px; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table-scroll { width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
 th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .055em; background: #f8faf8; }
 th, td { padding: 13px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
 tbody tr:hover { background: #fbfdfb; }
@@ -129,9 +130,12 @@ textarea { min-height: 72px; resize: vertical; }
 .chart-total-label { fill: var(--ink); font-size: 11px; font-weight: 750; }
 .chart-segment { opacity: .78; stroke: rgba(23,34,29,.28); stroke-width: 1; }
 .chart-segment:hover { opacity: .95; }
-.monthly-income-table { font-size: 12px; }
+.monthly-income-table { min-width: 1320px; font-size: 12px; }
 .monthly-income-table th:first-child, .monthly-income-table td:first-child { position: sticky; left: 0; z-index: 1; min-width: 190px; background: #fff; }
 .monthly-income-table thead th:first-child, .monthly-income-table tfoot td:first-child { background: #f8faf8; }
+.monthly-income-table th:last-child, .monthly-income-table td:last-child { position: sticky; right: 0; z-index: 1; min-width: 118px; background: #fff; box-shadow: -8px 0 12px rgba(244,247,244,.92); }
+.monthly-income-table thead th:last-child, .monthly-income-table tfoot td:last-child { background: #f8faf8; }
+.monthly-income-table th:not(:first-child), .monthly-income-table td:not(:first-child) { min-width: 86px; }
 .legend-dot { display: inline-block; width: 10px; height: 10px; margin-right: 7px; border-radius: 50%; vertical-align: middle; }
 .security-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
 .security-card { margin: 0; }
