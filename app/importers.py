@@ -127,11 +127,15 @@ def parse_date(value: str, *, required: bool = False):
 def normalize_name(value: str) -> str:
     value = value.upper()
     value = re.sub(r"\(LSE:[^)]+\)", "", value)
+    value = re.sub(r"^DIVIDEND\s+GRP\s+\d+\s+[\d,]+(?:\.\d+)?\s+", "", value)
     value = re.sub(
         r"^(DIVIDEND|PURCHASE|SALE|INCOME\s+PAYMENT|DISTRIBUTION)\s+[\d,]+(?:\.\d+)?\s+",
         "",
         value,
     )
+    value = re.sub(r"\bVANGUARD\s+INVESTMENTS\s+MONEY\s+MKT\s+FDS\s+VANGUARD\b", "VANGUARD", value)
+    value = re.sub(r"\bMKT\b", "MARKET", value)
+    value = re.sub(r"\bFDS\b", "FUNDS", value)
     value = re.sub(r"\bJ\s+P\s+MORGAN\b", "JPMORGAN", value)
     value = re.sub(r"\bJ\s+PMORGAN\b", "JPMORGAN", value)
     value = re.sub(r"\bLAWDEBENTURE\b", "LAW DEBENTURE", value)
@@ -320,10 +324,16 @@ def transaction_security_details(
     if transaction_type not in {"DIVIDEND", "BUY", "SELL"}:
         return None, None
     match = re.match(
-        r"^(?:Dividend|Purchase|Sale)\s+([\d,]+(?:\.\d+)?)\s+(.+)$",
+        r"^Dividend\s+Grp\s+\d+\s+([\d,]+(?:\.\d+)?)\s+(.+)$",
         description.strip(),
         re.IGNORECASE,
     )
+    if not match:
+        match = re.match(
+            r"^(?:Dividend|Purchase|Sale)\s+([\d,]+(?:\.\d+)?)\s+(.+)$",
+            description.strip(),
+            re.IGNORECASE,
+        )
     if not match:
         return None, None
     quantity = parse_decimal(match.group(1))

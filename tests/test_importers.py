@@ -113,6 +113,19 @@ def test_aj_bell_cash_statement_security_names_are_cleaned():
     assert normalised["quantity"] == "16928"
 
 
+def test_aj_bell_cash_statement_dividend_group_security_names_are_cleaned():
+    content = (
+        b"Date,Description,Reference,Settlement date,Receipt (GBP),Payment (GBP),Balance (GBP)\n"
+        b"30/06/2026,Dividend Grp 1 1148.34240 VANGUARD INVESTMENTS MONEY MKT FDS VANGUARD STERLING SHORT-TERM MONEY MARKET FUND,-,-,1.00,,1000.00\n"
+    )
+    staged, errors, warnings = stage_rows(content, AJ_BELL_CASH_STATEMENT, 1)
+    assert errors == 0
+    assert warnings == 0
+    normalised = json.loads(staged[0]["normalized_json"])
+    assert normalised["name"] == "VANGUARD INVESTMENTS MONEY MKT FDS VANGUARD STERLING SHORT-TERM MONEY MARKET FUND"
+    assert normalised["quantity"] == "1148.34240"
+
+
 def test_aj_bell_transaction_security_names_are_cleaned():
     content = (
         b"Date,Type,Description,Amount\n"
@@ -140,4 +153,5 @@ def test_aj_bell_description_matching_handles_common_abbreviations(db):
     assert match_security(db, name="Dividend 16928 J PMORGAN GLOBAL GROWTH & INCOME P ORD GBP0.05").name == "JPMorgan Global Growth & Income"
     assert match_security(db, name="Dividend 10596 LAWDEBENTURE ORD GBP 0.05").name == "Law Debenture Corporation"
     assert match_security(db, name="Purchase 236,116.3582 Vanguard Stlg S/T Mny Mkts A GBP Acc").name == "Vanguard Sterling Short-Term Money Market"
+    assert match_security(db, name="Dividend Grp 1 1148.34240 VANGUARD INVESTMENTS MONEY MKT FDS VANGUARD STERLING SHORT-TERM MONEY MARKET FUND").name == "Vanguard Sterling Short-Term Money Market"
     assert match_security(db, name="Purchase 1,105 City of London Ord").name == "City of London Investment Trust"
