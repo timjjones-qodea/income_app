@@ -5,7 +5,7 @@
 <section class="panel help-panel">
   <div>
     <h2>Actual income, not forecast income</h2>
-    <p>This page comes from AJ Bell cash statements. It is the audit trail of money actually paid into each account. Use it to check dividend timing, total received income, payment-time quantities and tax-year totals.</p>
+    <p>This page comes from AJ Bell cash statements. It is the audit trail of money actually paid into each account. The dashboard planning estimate is different: it annualises current holdings from the best available income source, so it will not normally equal actual receipts for a past period.</p>
   </div>
   <div class="actions">
     <a class="button secondary" href="/reports/historic-income-by-account.csv">Export by account</a>
@@ -13,14 +13,47 @@
   </div>
 </section>
 <section class="panel">
-  <form method="get" class="filters"><label>Calendar year<input name="calendar_year" type="number" value="{{ request.query_params.get('calendar_year','') }}"></label><label>UK tax year<input name="tax_year" placeholder="2025/26" value="{{ request.query_params.get('tax_year','') }}"></label><button>Apply filters</button><a href="/income/history">Clear</a></form>
+  <form method="get" class="filters period-filters">
+    <label>Period basis<select name="period" id="period-selector">
+      <option value="trailing" {% if period == "trailing" %}selected{% endif %}>Last 12 months</option>
+      <option value="tax_year" {% if period == "tax_year" %}selected{% endif %}>UK tax year</option>
+      <option value="calendar_year" {% if period == "calendar_year" %}selected{% endif %}>Calendar year</option>
+    </select></label>
+    <label data-period-field="tax_year">UK tax year<select name="tax_year" id="tax-year-selector">
+      {% for item in available_tax_years %}<option value="{{ item }}" {% if item == tax_year %}selected{% endif %}>{{ item }}</option>{% endfor %}
+    </select></label>
+    <label data-period-field="calendar_year">Calendar year<select name="calendar_year" id="calendar-year-selector">
+      {% for item in available_calendar_years %}<option value="{{ item }}" {% if item == calendar_year %}selected{% endif %}>{{ item }}</option>{% endfor %}
+    </select></label>
+    <button>Apply filters</button><a href="/income/history">Clear</a>
+  </form>
 </section>
-<section class="panel"><div class="panel-heading"><h2>Annual summary</h2></div>
-{% if annual %}<table><thead><tr><th>Year</th><th>Person</th><th>Account</th><th class="numeric">Dividends</th><th class="numeric">Interest</th><th class="numeric">Total</th></tr></thead><tbody>
-{% for row in annual %}<tr><td>{{ row.calendar_year }}</td><td>{{ row.person }}</td><td>{{ row.account }}</td><td class="numeric">{{ row.dividends|money }}</td><td class="numeric">{{ row.interest|money }}</td><td class="numeric strong">{{ row.total|money }}</td></tr>{% endfor %}
-</tbody></table>{% else %}<div class="empty">No imported income transactions match these filters.</div>{% endif %}</section>
+<section class="metrics compact income-reconciliation">
+  <article><span>Actual income · {{ period_label }}</span><strong>{{ summary.total|money }}</strong><small>Dividends {{ summary.dividends|money }} · interest {{ summary.interest|money }}</small></article>
+  <article><span>Actual yield · selected period</span><strong>{{ actual_yield|percent }}</strong><small>Actual receipts divided by latest portfolio value</small></article>
+  <article><span>Planning income estimate</span><strong>{{ planning_income|money }}</strong><small>Annualised from current holdings</small></article>
+  <article><span>Actual versus planning</span><strong>{{ actual_vs_planning|money }}</strong><small>Different basis: received cash versus current run-rate</small></article>
+</section>
+<section class="panel"><div class="panel-heading"><h2>Annual summary</h2><p class="muted">{{ period_label }}</p></div>
+{% if annual %}<table><thead><tr><th>Period</th><th>Person</th><th>Account</th><th class="numeric">Dividends</th><th class="numeric">Interest</th><th class="numeric">Total</th></tr></thead><tbody>
+{% for row in annual %}<tr><td>{{ row.summary_period }}</td><td>{{ row.person }}</td><td>{{ row.account }}</td><td class="numeric">{{ row.dividends|money }}</td><td class="numeric">{{ row.interest|money }}</td><td class="numeric strong">{{ row.total|money }}</td></tr>{% endfor %}
+</tbody><tfoot><tr><td colspan="3">Total</td><td class="numeric">{{ summary.dividends|money }}</td><td class="numeric">{{ summary.interest|money }}</td><td class="numeric strong">{{ summary.total|money }}</td></tr></tfoot></table>{% else %}<div class="empty">No imported income transactions match these filters.</div>{% endif %}</section>
 <section class="panel"><div class="panel-heading"><h2>Receipt audit trail</h2></div>
 {% if rows %}<div class="table-scroll"><table><thead><tr><th>Date</th><th>Tax year</th><th>Account</th><th>Security</th><th>Type</th><th class="numeric">Quantity paid</th><th class="numeric">Per share</th><th class="numeric">Amount</th><th>Import</th></tr></thead><tbody>
 {% for row in rows %}<tr><td>{{ row.transaction.transaction_date.strftime("%d %b %Y") }}</td><td>{{ row.tax_year }}</td><td>{{ row.account.account_name }}</td><td>{{ row.security.ticker if row.security else "Unmatched" }}<small class="block">{{ row.transaction.description }}</small></td><td>{{ row.transaction.transaction_type }}</td><td class="numeric">{{ "{:,.0f}".format(row.quantity) if row.quantity else "—" }}</td><td class="numeric">{{ "{:.4f}p".format(row.per_share * 100) if row.per_share is not none else "—" }}</td><td class="numeric">{{ row.total|money }}</td><td><a href="/imports/{{ row.transaction.source_import_id }}">#{{ row.transaction.source_import_id }}</a></td></tr>{% endfor %}
 </tbody></table></div>{% endif %}</section>
+<script>
+  const periodSelector = document.getElementById("period-selector");
+  const periodFields = document.querySelectorAll("[data-period-field]");
+  function syncPeriodFields() {
+    const selected = periodSelector.value;
+    periodFields.forEach((field) => {
+      const active = field.dataset.periodField === selected;
+      field.hidden = !active;
+      field.querySelectorAll("select").forEach((select) => { select.disabled = !active; });
+    });
+  }
+  periodSelector?.addEventListener("change", syncPeriodFields);
+  syncPeriodFields();
+</script>
 {% endblock %}

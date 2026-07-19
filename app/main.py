@@ -587,11 +587,27 @@ def income_history(
     account: str | None = None,
     wrapper: str | None = None,
     security: str | None = None,
+    period: str | None = None,
     calendar_year: int | None = None,
     tax_year: str | None = None,
     db: Session = Depends(get_db),
 ):
-    rows = historic_income_rows(db)
+    all_rows = historic_income_rows(db)
+    available_calendar_years = sorted({row["calendar_year"] for row in all_rows}, reverse=True)
+    available_tax_years = sorted({row["tax_year"] for row in all_rows}, reverse=True)
+    if period not in {"trailing", "calendar_year", "tax_year"}:
+        if calendar_year:
+            period = "calendar_year"
+        elif tax_year:
+            period = "tax_year"
+        else:
+            period = "trailing"
+    if period == "calendar_year" and calendar_year is None and available_calendar_years:
+        calendar_year = available_calendar_years[0]
+    if period == "tax_year" and not tax_year and available_tax_years:
+        tax_year = available_tax_years[0]
+
+    rows = list(all_rows)
     if person:
         rows = [row for row in rows if row["person"].name == person]
     if account:
@@ -600,12 +616,50 @@ def income_history(
         rows = [row for row in rows if row["account"].wrapper_type == wrapper]
     if security:
         rows = [row for row in rows if row["security"] and row["security"].ticker == security]
-    if calendar_year:
+    if period == "trailing":
+        trailing_cutoff = date.today() - timedelta(days=365)
+        rows = [
+            row
+            for row in rows
+            if trailing_cutoff <= row["transaction"].transaction_date <= date.today()
+        ]
+        period_label = "Last 12 months"
+    elif period == "calendar_year" and calendar_year:
         rows = [row for row in rows if row["calendar_year"] == calendar_year]
-    if tax_year:
+        period_label = str(calendar_year)
+    elif period == "tax_year" and tax_year:
         rows = [row for row in rows if row["tax_year"] == tax_year]
-    annual = aggregate_income(rows, ("calendar_year", "person", "account"))
-    return render(request, "income.html", rows=rows, annual=annual)
+        period_label = tax_year
+    else:
+        period_label = "All income"
+
+    for row in rows:
+        row["summary_period"] = period_label
+    annual = aggregate_income(rows, ("summary_period", "person", "account"))
+    summary = {
+        "dividends": sum((row["dividends"] for row in rows), Decimal("0")),
+        "interest": sum((row["interest"] for row in rows), Decimal("0")),
+        "total": sum((row["total"] for row in rows), Decimal("0")),
+    }
+    forward = forward_income_rows(db)
+    forward_total = sum((item["forward_income"] for item in forward), Decimal("0"))
+    current_value = sum((Decimal(item.market_value) for item in current_holdings(db)), Decimal("0"))
+    return render(
+        request,
+        "income.html",
+        rows=rows,
+        annual=annual,
+        summary=summary,
+        period=period,
+        period_label=period_label,
+        calendar_year=calendar_year,
+        tax_year=tax_year,
+        available_calendar_years=available_calendar_years,
+        available_tax_years=available_tax_years,
+        planning_income=forward_total,
+        actual_vs_planning=summary["total"] - forward_total,
+        actual_yield=summary["total"] / current_value if current_value else Decimal("0"),
+    )
 
 
 @app.get("/income/forward", response_class=HTMLResponse)
