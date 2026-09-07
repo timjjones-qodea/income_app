@@ -7,10 +7,11 @@ from calendar import month_abbr
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from pathlib import Path
 from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import delete, func, select
@@ -60,6 +61,8 @@ CHART_PALETTE = (
     "#e02f3d", "#83a8c9", "#8aa871", "#f08b56", "#9d9d9d", "#6b9f3a",
     "#c8631b", "#2f7686", "#c04f61", "#7894ad", "#5c7d32", "#b8792e",
 )
+
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 def seed_vanguard_money_market_security(db: Session) -> None:
@@ -245,6 +248,13 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
 
+def static_asset(filename: str, media_type: str) -> FileResponse:
+    path = STATIC_DIR / filename
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Static asset not found")
+    return FileResponse(path, media_type=media_type)
+
+
 def money(value) -> str:
     return f"£{Decimal(value or 0):,.2f}"
 
@@ -263,6 +273,42 @@ def render(request: Request, name: str, **context):
         name=name,
         context={"request": request, "today": date.today(), **context},
     )
+
+
+@app.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
+def favicon_ico():
+    return static_asset("favicon-v2.ico", "image/x-icon")
+
+
+@app.api_route("/favicon-16x16.png", methods=["GET", "HEAD"], include_in_schema=False)
+def favicon_16():
+    return static_asset("favicon-16x16.png", "image/png")
+
+
+@app.api_route("/favicon-32x32.png", methods=["GET", "HEAD"], include_in_schema=False)
+def favicon_32():
+    return static_asset("favicon-32x32.png", "image/png")
+
+
+@app.api_route("/apple-touch-icon.png", methods=["GET", "HEAD"], include_in_schema=False)
+@app.api_route("/apple-touch-icon-v2.png", methods=["GET", "HEAD"], include_in_schema=False)
+def apple_touch_icon():
+    return static_asset("apple-touch-icon-v2.png", "image/png")
+
+
+@app.api_route("/android-chrome-192x192.png", methods=["GET", "HEAD"], include_in_schema=False)
+def android_chrome_192():
+    return static_asset("android-chrome-192x192.png", "image/png")
+
+
+@app.api_route("/android-chrome-512x512.png", methods=["GET", "HEAD"], include_in_schema=False)
+def android_chrome_512():
+    return static_asset("android-chrome-512x512.png", "image/png")
+
+
+@app.api_route("/site.webmanifest", methods=["GET", "HEAD"], include_in_schema=False)
+def site_webmanifest():
+    return static_asset("site.webmanifest", "application/manifest+json")
 
 
 @app.get("/health")
