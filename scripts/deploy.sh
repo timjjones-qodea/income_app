@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+
 set -Eeuo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 SOURCE_ENV="${SOURCE_ENV:-$REPO_ROOT/.env.production}"
 PROD_COMPOSE="${PROD_COMPOSE:-$REPO_ROOT/docker-compose.prod.yml}"
 
@@ -16,23 +17,32 @@ set -a
 source "$SOURCE_ENV"
 set +a
 
-SERVER_FQDN="${SERVER_FQDN:-edgepi}"
-EDGE_NETWORK_ROOT="${EDGE_NETWORK_ROOT:-/mnt/ssd/edgepi/edge-network}"
-EDGE_DATA_ROOT="${EDGE_DATA_ROOT:-/mnt/ssd/edgepi/edge-data}"
-REMOTE_APP_DIR="${REMOTE_APP_DIR:-$EDGE_NETWORK_ROOT/income}"
-GHCR_IMAGE="${GHCR_IMAGE:-${RIE_IMAGE:-ghcr.io/timjjones-qodea/income-app:latest}}"
-LOCAL_IMAGE_NAME="${LOCAL_IMAGE_NAME:-retirement-income:latest}"
-GHCR_LOGIN_SCRIPT="${GHCR_LOGIN_SCRIPT:-$EDGE_NETWORK_ROOT/scripts/ghcr-login.sh}"
+export APP_NAME="${APP_NAME:-Retirement Income}"
+export REPO_ROOT
+export SOURCE_ENV
+export SERVER_FQDN="${SERVER_FQDN:-edgepi}"
+export EDGE_NETWORK_ROOT="${EDGE_NETWORK_ROOT:-/mnt/ssd/edgepi/edge-network}"
+export EDGE_DATA_ROOT="${EDGE_DATA_ROOT:-/mnt/ssd/edgepi/edge-data}"
+export REMOTE_APP_DIR="${REMOTE_APP_DIR:-$EDGE_NETWORK_ROOT/income}"
+export GHCR_IMAGE="${GHCR_IMAGE:-${RIE_IMAGE:-ghcr.io/timjjones-qodea/income-app:latest}}"
+export LOCAL_IMAGE_NAME="${LOCAL_IMAGE_NAME:-retirement-income:latest}"
+export PROJECT_DIR_SECRETS="${PROJECT_DIR_SECRETS:-/Users/timjones/Library/Mobile Documents/com~apple~CloudDocs/Personal/Apps/MTD_Bookkeeper/.data/secrets}"
+export GHCR_SECRETS_DIR="${GHCR_SECRETS_DIR:-$PROJECT_DIR_SECRETS/github}"
+export REMOTE_GHCR_SECRETS_DIR="${REMOTE_GHCR_SECRETS_DIR:-$EDGE_DATA_ROOT/shared/secrets/github}"
+export BUILD_COMPOSE_FILE="${BUILD_COMPOSE_FILE:-$REPO_ROOT/docker-compose.yml}"
+export SYNC_COMPOSE_FILE="${SYNC_COMPOSE_FILE:-$PROD_COMPOSE}"
+export REMOTE_COMPOSE_FILE="${REMOTE_COMPOSE_FILE:-docker-compose.yaml}"
+export IMAGE_ENV_VAR="${IMAGE_ENV_VAR:-RIE_IMAGE}"
+export REMOTE_ENV_LINES="EDGE_DATA_ROOT=$EDGE_DATA_ROOT"
+export LOCAL_GHCR_LOGIN_SCRIPT="${LOCAL_GHCR_LOGIN_SCRIPT:-/Users/timjones/Library/Mobile Documents/com~apple~CloudDocs/Personal/Apps/EDGE-network/scripts/ghcr-login.sh}"
+export REMOTE_GHCR_LOGIN_SCRIPT="${REMOTE_GHCR_LOGIN_SCRIPT:-$EDGE_NETWORK_ROOT/scripts/ghcr-login.sh}"
+
 SSH_OPTIONS=(
   -o BatchMode=yes
   -o ConnectTimeout=10
   -o ServerAliveInterval=15
   -o ServerAliveCountMax=3
 )
-RSYNC_SSH="ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=3"
-
-echo "Starting Retirement Income deployment to ${SERVER_FQDN}"
-cd "$REPO_ROOT"
 
 echo "Checking non-interactive EdgePi SSH access"
 if ! ssh "${SSH_OPTIONS[@]}" "$SERVER_FQDN" true; then
@@ -44,46 +54,13 @@ fi
 echo "Validating production Compose"
 docker compose --env-file "$SOURCE_ENV" -f "$PROD_COMPOSE" config --quiet
 
-echo "Pulling latest source"
-git pull --ff-only
+SHARED_DEPLOY_SCRIPT="${SHARED_DEPLOY_SCRIPT:-/Users/timjones/Library/Mobile Documents/com~apple~CloudDocs/Personal/Apps/EDGE-network/scripts/deploy-ghcr-app.sh}"
 
-echo "Building application image"
-docker compose -f docker-compose.yml build
-
-if ! docker image inspect "$LOCAL_IMAGE_NAME" >/dev/null 2>&1; then
-  echo "Unable to find local image '$LOCAL_IMAGE_NAME' after build" >&2
+if [[ ! -x "$SHARED_DEPLOY_SCRIPT" ]]; then
+  echo "Shared deploy script is missing or not executable: $SHARED_DEPLOY_SCRIPT" >&2
   exit 1
 fi
 
-echo "Tagging and pushing ${GHCR_IMAGE}"
-docker tag "$LOCAL_IMAGE_NAME" "$GHCR_IMAGE"
-docker push "$GHCR_IMAGE"
+"$SHARED_DEPLOY_SCRIPT"
 
-echo "Preparing EdgePi directories"
-ssh "${SSH_OPTIONS[@]}" "$SERVER_FQDN" "mkdir -p '$REMOTE_APP_DIR' '$EDGE_DATA_ROOT/income/data'"
-
-echo "Syncing production Compose and environment"
-rsync -e "$RSYNC_SSH" -a "$PROD_COMPOSE" "${SERVER_FQDN}:${REMOTE_APP_DIR}/docker-compose.yaml"
-rsync -e "$RSYNC_SSH" -a "$SOURCE_ENV" "${SERVER_FQDN}:${REMOTE_APP_DIR}/.env"
-
-echo "Deploying remotely on ${SERVER_FQDN}"
-ssh "${SSH_OPTIONS[@]}" "$SERVER_FQDN" bash <<EOF
-set -Eeuo pipefail
-
-cd "$EDGE_NETWORK_ROOT"
-./scripts/maintain-env.sh
-
-cd "$REMOTE_APP_DIR"
-if [[ -x "$GHCR_LOGIN_SCRIPT" ]]; then
-  "$GHCR_LOGIN_SCRIPT"
-fi
-
-docker compose pull
-docker compose up -d --remove-orphans
-docker image prune -f
-docker compose ps
-EOF
-
-echo
-echo "Deployment complete: ${GHCR_IMAGE}"
 echo "Application URL: https://${RIE_HOSTNAME:-inc.braeside-host.uk}"
