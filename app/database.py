@@ -68,6 +68,11 @@ def init_db() -> None:
             "wendy_state_pension_start": "DATE NOT NULL DEFAULT '2039-05-23'",
             "state_pension_annual": "NUMERIC(20,2) NOT NULL DEFAULT 12547.60",
             "state_pension_growth_percent": "NUMERIC(8,4) NOT NULL DEFAULT 2.5",
+            "isa_capital_growth_percent": "NUMERIC(8,4) NOT NULL DEFAULT 1.5",
+            "isa_allowance_per_person": "NUMERIC(20,2) NOT NULL DEFAULT 20000",
+            "isa_contribution_per_person": "NUMERIC(20,2) NOT NULL DEFAULT 20000",
+            "tim_withdrawal_start": "DATE NOT NULL DEFAULT '2027-04-06'",
+            "wendy_first_crystallisation": "DATE NOT NULL DEFAULT '2027-05-23'",
         }
         with engine.begin() as connection:
             for column, definition in planning_additions.items():

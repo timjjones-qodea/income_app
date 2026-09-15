@@ -239,6 +239,9 @@ class PlanningScenario(Base):
     wendy_safety_margin: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=0)
     wendy_pcls: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=50000)
     isa_subscriptions: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=40000)
+    isa_capital_growth_percent: Mapped[Decimal] = mapped_column(Numeric(8, 4), default=1.5)
+    isa_allowance_per_person: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=20000)
+    isa_contribution_per_person: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=20000)
     projection_start_year: Mapped[int] = mapped_column(Integer, default=2027)
     projection_years: Mapped[int] = mapped_column(Integer, default=20)
     investment_growth_percent: Mapped[Decimal] = mapped_column(Numeric(8, 4), default=5)
@@ -255,6 +258,8 @@ class PlanningScenario(Base):
     wendy_state_pension_start: Mapped[date] = mapped_column(Date, default=date(2039, 5, 23))
     state_pension_annual: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=12547.60)
     state_pension_growth_percent: Mapped[Decimal] = mapped_column(Numeric(8, 4), default=2.5)
+    tim_withdrawal_start: Mapped[date] = mapped_column(Date, default=date(2027, 4, 6))
+    wendy_first_crystallisation: Mapped[date] = mapped_column(Date, default=date(2027, 5, 23))
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
@@ -280,6 +285,9 @@ def default_planning_scenario(name: str = "New scenario") -> PlanningScenario:
         wendy_safety_margin=Decimal("0"),
         wendy_pcls=Decimal("50000"),
         isa_subscriptions=Decimal("40000"),
+        isa_capital_growth_percent=Decimal("1.5"),
+        isa_allowance_per_person=Decimal("20000"),
+        isa_contribution_per_person=Decimal("20000"),
         projection_start_year=2027,
         projection_years=20,
         investment_growth_percent=Decimal("5"),
@@ -296,4 +304,6 @@ def default_planning_scenario(name: str = "New scenario") -> PlanningScenario:
         wendy_state_pension_start=date(2039, 5, 23),
         state_pension_annual=Decimal("12547.60"),
         state_pension_growth_percent=Decimal("2.5"),
+        tim_withdrawal_start=date(2027, 4, 6),
+        wendy_first_crystallisation=date(2027, 5, 23),
     )

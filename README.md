@@ -55,6 +55,7 @@ Tax labels are currently descriptive. Detailed tax calculation is a planned buil
 - Named retirement and estate-planning scenarios with transparent per-person tax, expenditure allocation, safety margins and provisional gift capacity.
 - Capital-aware treatment that keeps pension commencement lump sums and ISA subscriptions outside normal-expenditure-out-of-income capacity.
 - Multi-year pension, State Pension, expenditure and gift-capacity projections with explicit growth, inflation and tax-rule assumptions.
+- Per-person ISA balance projections separating paid-out natural income, retained capital growth, contributions and PCLS-versus-income funding.
 
 ## Data-source priority
 

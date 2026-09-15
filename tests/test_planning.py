@@ -1,4 +1,5 @@
 from decimal import Decimal
+from datetime import date
 
 from app.models import default_planning_scenario
 from app.planning import (
@@ -78,11 +79,39 @@ def test_twenty_year_projection_tracks_pensions_and_state_pension_timing():
     assert rows[-1].wendy_uncrystallised_end == Decimal("0.00")
 
 
-def test_projection_pcls_does_not_change_gift_capacity():
+def test_projection_uses_pcls_for_isa_before_recurring_income():
     scenario = default_planning_scenario("No PCLS")
     scenario.wendy_pcls = Decimal("0")
     without_pcls = project_scenario(scenario, ENGLAND_TAX_RULES["2026/27"])[0]
     scenario.wendy_pcls = Decimal("50000")
     with_pcls = project_scenario(scenario, ENGLAND_TAX_RULES["2026/27"])[0]
-    assert with_pcls.household_gift_capacity == without_pcls.household_gift_capacity
+    assert without_pcls.isa_contributions_from_income == Decimal("40000.00")
+    assert with_pcls.isa_contributions_from_pcls == Decimal("40000.00")
+    assert with_pcls.isa_contributions_from_income == Decimal("0.00")
+    assert (
+        with_pcls.household_gift_capacity
+        == without_pcls.household_gift_capacity + Decimal("40000.00")
+    )
     assert with_pcls.wendy_sipp_end == without_pcls.wendy_sipp_end - Decimal("50000.00")
+
+
+def test_isa_projection_shows_income_growth_contributions_and_balances():
+    scenario = default_planning_scenario("ISAs")
+    first = project_scenario(scenario, ENGLAND_TAX_RULES["2026/27"])[0]
+    assert first.isa_income == Decimal("45500.00")
+    assert first.tim_isa_growth == Decimal("9750.00")
+    assert first.isa_contributions == Decimal("40000.00")
+    assert first.tim_isa_end == Decimal("679750.00")
+    assert first.wendy_isa_end == Decimal("679750.00")
+
+
+def test_pension_actions_do_not_begin_before_configured_dates():
+    scenario = default_planning_scenario("Delayed starts")
+    scenario.tim_withdrawal_start = date(2028, 4, 6)
+    scenario.wendy_first_crystallisation = date(2028, 5, 23)
+    rows = project_scenario(scenario, ENGLAND_TAX_RULES["2026/27"])
+    assert rows[0].tim_withdrawal == Decimal("0.00")
+    assert rows[0].wendy_pcls == Decimal("0.00")
+    assert rows[0].isa_contributions_from_income == Decimal("40000.00")
+    assert rows[1].tim_withdrawal == Decimal("180000.00")
+    assert rows[1].wendy_pcls == Decimal("50000.00")

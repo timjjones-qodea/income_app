@@ -240,6 +240,39 @@ Known limits added by this slice:
 
 The next analytical slice should compare saved scenarios side by side and introduce adverse return paths, fees, income changes and a survivor/first-death case. The MTD Bookkeeper evidence ledger should then consume actual rather than planned income, tax, expenditure and gift transactions.
 
+### ISA and execution-timing refinement — 15 September 2026
+
+The timeline now contains a separate ISA ledger for Tim and Wendy:
+
+- £650,000 opening balance for each spouse;
+- natural income calculated annually from each opening balance and paid into household cash flow;
+- capital growth retained inside each ISA, separately from natural income to avoid double-counting total return;
+- an editable annual allowance and planned contribution per person, both initially £20,000;
+- planned contributions capped automatically at the entered allowance;
+- closing balance for each spouse after capital growth and contribution;
+- contribution provenance split between Wendy's PCLS and recurring household income;
+- recurring-income-funded contributions deducted before provisional gift capacity is reported.
+
+The baseline assumes 3.5% natural income plus 1.5% retained capital growth, representing an illustrative 5% total return before fees. Over 20 years, it contributes £800,000 to the two ISAs, pays out approximately £1.344 million of ISA income and ends with combined ISA balances of approximately **£2.676 million**. These are smooth nominal assumptions, not forecasts.
+
+The ISA funding sequence is now explicit:
+
+| Tax year | Total contribution | From Wendy PCLS | From recurring income |
+| --- | ---: | ---: | ---: |
+| 2027/28 | £40,000 | £40,000 | £0 |
+| 2028/29 | £40,000 | £40,000 | £0 |
+| 2029/30 | £40,000 | £40,000 | £0 |
+| 2030/31 | £40,000 | £32,013.52 | £7,986.48 |
+| 2031/32 onward | £40,000 | £0 | £40,000 |
+
+The model splits any income-funded ISA shortfall equally between Tim and Wendy. This is a transparent provisional convention and should later become an editable funding allocation or follow actual bank evidence.
+
+Execution dates are also stored explicitly. Tim's first SIPP withdrawal is set to 6 April 2027, after the expected end of his consultancy employment. Wendy's first crystallisation is set to 23 May 2027, her 55th birthday. No planned withdrawal or crystallisation occurs in a tax year ending before the relevant date.
+
+Because future ISA allowances are not known permanently, the model holds the entered £20,000 per-person allowance flat and shows it as an assumption. It must be reviewed when each tax year's rules are published.
+
+Adding income-funded ISA subscriptions reduces baseline cumulative provisional gift capacity from approximately £2.807 million to approximately **£2.592 million** over 20 years. This is the more internally consistent cash-flow result: money cannot be both subscribed to ISAs and gifted.
+
 ## Official sources checked
 
 - HMRC Inheritance Tax Manual IHTM14231, IHTM14242, IHTM14250 and IHTM14255.

@@ -1147,7 +1147,9 @@ def save_planning_scenario(
     tim_safety_margin: str = Form(...),
     wendy_safety_margin: str = Form(...),
     wendy_pcls: str = Form(...),
-    isa_subscriptions: str = Form(...),
+    isa_capital_growth_percent: str = Form(...),
+    isa_allowance_per_person: str = Form(...),
+    isa_contribution_per_person: str = Form(...),
     projection_start_year: int = Form(...),
     projection_years: int = Form(...),
     investment_growth_percent: str = Form(...),
@@ -1164,6 +1166,8 @@ def save_planning_scenario(
     wendy_state_pension_start: date = Form(...),
     state_pension_annual: str = Form(...),
     state_pension_growth_percent: str = Form(...),
+    tim_withdrawal_start: date = Form(...),
+    wendy_first_crystallisation: date = Form(...),
     notes: str = Form(""),
     db: Session = Depends(get_db),
 ):
@@ -1194,7 +1198,9 @@ def save_planning_scenario(
         "tim_safety_margin": decimal_form(tim_safety_margin, "Tim safety margin"),
         "wendy_safety_margin": decimal_form(wendy_safety_margin, "Wendy safety margin"),
         "wendy_pcls": decimal_form(wendy_pcls, "Wendy PCLS"),
-        "isa_subscriptions": decimal_form(isa_subscriptions, "ISA subscriptions"),
+        "isa_capital_growth_percent": decimal_form(isa_capital_growth_percent, "ISA capital growth", minimum=Decimal("-100")),
+        "isa_allowance_per_person": decimal_form(isa_allowance_per_person, "ISA allowance"),
+        "isa_contribution_per_person": decimal_form(isa_contribution_per_person, "ISA contribution"),
         "investment_growth_percent": decimal_form(investment_growth_percent, "Investment growth", minimum=Decimal("-100")),
         "inflation_percent": decimal_form(inflation_percent, "Inflation", minimum=Decimal("-100")),
         "later_household_expenditure": decimal_form(later_household_expenditure, "Later expenditure"),
@@ -1222,6 +1228,8 @@ def save_planning_scenario(
     scenario.high_spend_years = high_spend_years
     scenario.tim_state_pension_start = tim_state_pension_start
     scenario.wendy_state_pension_start = wendy_state_pension_start
+    scenario.tim_withdrawal_start = tim_withdrawal_start
+    scenario.wendy_first_crystallisation = wendy_first_crystallisation
     scenario.notes = notes.strip() or None
     for field, value in values.items():
         setattr(scenario, field, value)

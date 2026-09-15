@@ -217,6 +217,7 @@ details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); fo
 .checkbox-label { flex-direction: row; align-items: center; }
 .checkbox-label input { width: auto; min-height: 0; }
 .projection-table { min-width: 1420px; }
+.isa-projection-table { min-width: 1180px; }
 .projection-table-wrap { max-height: 590px; overflow: auto; }
 .projection-table thead { position: sticky; top: 0; z-index: 1; }
 @media (max-width: 900px) {

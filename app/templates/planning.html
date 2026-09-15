@@ -60,7 +60,27 @@
           </tr>{% endfor %}</tbody>
         </table>
       </div>
-      <p class="hint">Nominal projection: growth is applied before annual withdrawals. ISA values and non-pension profits are held flat; expenditure and State Pension follow their selected growth assumptions. Future years reuse the selected tax bands because later rates are not yet known.</p>
+      <p class="hint">Nominal projection: pension growth is applied before annual withdrawals. Non-pension profits are held flat; expenditure and State Pension follow their selected growth assumptions. Future years reuse the selected tax bands because later rates are not yet known.</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading"><h2>ISA balances, income and funding</h2><span class="status">Allowance {{ scenario.isa_allowance_per_person|money }} each</span></div>
+      <div class="table-scroll projection-table-wrap">
+        <table class="isa-projection-table">
+          <thead><tr><th>Tax year</th><th class="numeric">Opening ISAs</th><th class="numeric">Natural income</th><th class="numeric">Capital growth</th><th class="numeric">Contributions</th><th class="numeric">From PCLS</th><th class="numeric">From income</th><th class="numeric">Closing ISAs</th></tr></thead>
+          <tbody>{% for row in projection %}<tr>
+            <td class="strong">{{ row.tax_year }}</td>
+            <td class="numeric">{{ (row.tim_isa_open + row.wendy_isa_open)|money }}<small class="block">T {{ row.tim_isa_open|money }} · W {{ row.wendy_isa_open|money }}</small></td>
+            <td class="numeric">{{ row.isa_income|money }}</td>
+            <td class="numeric">{{ (row.tim_isa_growth + row.wendy_isa_growth)|money }}</td>
+            <td class="numeric">{{ row.isa_contributions|money }}</td>
+            <td class="numeric">{{ row.isa_contributions_from_pcls|money }}</td>
+            <td class="numeric">{{ row.isa_contributions_from_income|money }}</td>
+            <td class="numeric strong">{{ (row.tim_isa_end + row.wendy_isa_end)|money }}<small class="block">T {{ row.tim_isa_end|money }} · W {{ row.wendy_isa_end|money }}</small></td>
+          </tr>{% endfor %}</tbody>
+        </table>
+      </div>
+      <p class="hint">Natural income is paid out and available to household cash flow. Capital growth stays inside each ISA. Contributions are added at year end and capped at the editable per-person allowance. PCLS funds them first; any shortfall is split equally between Tim's and Wendy's recurring income before gift capacity is calculated.</p>
     </section>
 
     <section class="panel">
@@ -113,9 +133,11 @@
         <h3>Household and capital</h3>
         <div class="scenario-grid">
           <label>ISA natural yield (%)<input type="number" min="0" step="0.01" name="isa_yield_percent" value="{{ scenario.isa_yield_percent }}" required></label>
+          <label>ISA capital growth (%)<input type="number" min="-100" step="0.01" name="isa_capital_growth_percent" value="{{ scenario.isa_capital_growth_percent }}" required></label>
+          <label>ISA allowance per person (£)<input type="number" min="0" step="0.01" name="isa_allowance_per_person" value="{{ scenario.isa_allowance_per_person }}" required></label>
+          <label>Planned contribution per person (£)<input type="number" min="0" step="0.01" name="isa_contribution_per_person" value="{{ scenario.isa_contribution_per_person }}" required></label>
           <label>Normal expenditure (£)<input type="number" min="0" step="0.01" name="household_expenditure" value="{{ scenario.household_expenditure }}" required></label>
           <label>Wendy PCLS (£, capital)<input type="number" min="0" step="0.01" name="wendy_pcls" value="{{ scenario.wendy_pcls }}" required></label>
-          <label>ISA subscriptions (£, capital)<input type="number" min="0" step="0.01" name="isa_subscriptions" value="{{ scenario.isa_subscriptions }}" required></label>
         </div>
 
         <h3>Timeline and pension balances</h3>
@@ -128,9 +150,11 @@
           <label>Later annual expenditure (£)<input type="number" min="0" step="0.01" name="later_household_expenditure" value="{{ scenario.later_household_expenditure }}" required></label>
           <label>Tim crystallised SIPP (£)<input type="number" min="0" step="0.01" name="tim_sipp_crystallised" value="{{ scenario.tim_sipp_crystallised }}" required></label>
           <label>Tim uncrystallised SIPP (£)<input type="number" min="0" step="0.01" name="tim_sipp_uncrystallised" value="{{ scenario.tim_sipp_uncrystallised }}" required></label>
+          <label>Tim withdrawal starts<input type="date" name="tim_withdrawal_start" value="{{ scenario.tim_withdrawal_start.isoformat() }}" required></label>
           <label>Wendy crystallised SIPP (£)<input type="number" min="0" step="0.01" name="wendy_sipp_crystallised" value="{{ scenario.wendy_sipp_crystallised }}" required></label>
           <label>Wendy uncrystallised SIPP (£)<input type="number" min="0" step="0.01" name="wendy_sipp_uncrystallised" value="{{ scenario.wendy_sipp_uncrystallised }}" required></label>
           <label>Wendy annual crystallisation (£)<input type="number" min="0" step="0.01" name="wendy_annual_crystallisation" value="{{ scenario.wendy_annual_crystallisation }}" required></label>
+          <label>Wendy first crystallisation<input type="date" name="wendy_first_crystallisation" value="{{ scenario.wendy_first_crystallisation.isoformat() }}" required></label>
           <label>Wendy lump sum allowance (£)<input type="number" min="0" step="0.01" name="wendy_lump_sum_allowance" value="{{ scenario.wendy_lump_sum_allowance }}" required></label>
         </div>
 
