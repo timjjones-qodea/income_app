@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Planning · Retirement Income{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Retirement and estate planning</p>
+    <h1>Household scenarios</h1>
+    <p>Compare income, tax, normal expenditure and provisional gift capacity without mixing capital withdrawals into qualifying income.</p>
+  </div>
+  <a class="button secondary" href="/planning?new=true">New scenario</a>
+</div>
+
+{% if saved %}<p class="notice ok">Scenario saved and recalculated.</p>{% endif %}
+
+<section class="panel help-panel">
+  <div>
+    <h2>Planning guardrails</h2>
+    <p>Gift capacity is shown separately for each donor. Wendy's PCLS and ISA subscriptions appear as capital movements and never increase the normal-expenditure-out-of-income result.</p>
+  </div>
+  <ol class="compact-steps">
+    <li>Use gross French income and record French tax separately.</li>
+    <li>Allocate joint expenditure according to the real funding pattern.</li>
+    <li>Set a safety margin before using the result for standing orders.</li>
+  </ol>
+</section>
+
+<div class="planning-layout">
+  <aside class="panel scenario-list">
+    <div class="panel-heading"><h2>Saved scenarios</h2></div>
+    {% if scenarios %}
+      {% for item in scenarios %}
+      <a class="scenario-link{% if item.id == scenario.id %} active{% endif %}" href="/planning?scenario_id={{ item.id }}">
+        <strong>{{ item.name }}</strong><small>{{ item.tax_year }}</small>
+      </a>
+      {% endfor %}
+    {% else %}<p class="muted">No saved scenarios yet.</p>{% endif %}
+  </aside>
+
+  <div>
+    <section class="metrics planning-metrics">
+      <article><span>Recurring net income</span><strong>{{ plan.household_recurring_net_income|money }}</strong><small>Tim and Wendy combined</small></article>
+      <article><span>Normal expenditure</span><strong>{{ plan.household_expenditure|money }}</strong><small>Allocated between donors below</small></article>
+      <article><span>Provisional gift capacity</span><strong>{{ plan.household_gift_capacity|money }}</strong><small>{{ (plan.household_gift_capacity / 12)|money }} monthly</small></article>
+      <article><span>Capital movements</span><strong>{{ plan.wendy_pcls|money }}</strong><small>PCLS · ISA subscriptions {{ plan.isa_subscriptions|money }}</small></article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading"><h2>{{ projection|length }}-year timeline</h2><span class="status">Tax rules held at {{ scenario.tax_year }}</span></div>
+      <div class="table-scroll projection-table-wrap">
+        <table class="projection-table">
+          <thead><tr><th>Tax year</th><th>Ages</th><th class="numeric">Tim withdrawal</th><th class="numeric">State Pensions</th><th class="numeric">Wendy PCLS</th><th class="numeric">Expenditure</th><th class="numeric">Gift capacity</th><th class="numeric">Tim SIPP end</th><th class="numeric">Wendy SIPP end</th><th class="numeric">Wendy uncryst.</th></tr></thead>
+          <tbody>{% for row in projection %}<tr>
+            <td class="strong">{{ row.tax_year }}</td><td>Tim {{ row.tim_age }} · Wendy {{ row.wendy_age }}</td>
+            <td class="numeric">{{ row.tim_withdrawal|money }}</td>
+            <td class="numeric">{{ (row.tim_state_pension + row.wendy_state_pension)|money }}<small class="block">T {{ row.tim_state_pension|money }} · W {{ row.wendy_state_pension|money }}</small></td>
+            <td class="numeric">{{ row.wendy_pcls|money }}<small class="block">Allowance left {{ row.wendy_lump_sum_allowance_end|money }}</small></td>
+            <td class="numeric">{{ row.household_expenditure|money }}</td>
+            <td class="numeric strong">{{ row.household_gift_capacity|money }}</td>
+            <td class="numeric">{{ row.tim_sipp_end|money }}</td><td class="numeric">{{ row.wendy_sipp_end|money }}</td><td class="numeric">{{ row.wendy_uncrystallised_end|money }}</td>
+          </tr>{% endfor %}</tbody>
+        </table>
+      </div>
+      <p class="hint">Nominal projection: growth is applied before annual withdrawals. ISA values and non-pension profits are held flat; expenditure and State Pension follow their selected growth assumptions. Future years reuse the selected tax bands because later rates are not yet known.</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading"><h2>Per-person evidence view</h2><span class="status">{{ scenario.tax_year }} assumptions</span></div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Annual amount</th><th class="numeric">Tim</th><th class="numeric">Wendy</th><th class="numeric">Household</th></tr></thead>
+          <tbody>
+            <tr><td>Gross taxable income</td><td class="numeric">{{ plan.tim.gross_taxable_income|money }}</td><td class="numeric">{{ plan.wendy.gross_taxable_income|money }}</td><td class="numeric">{{ (plan.tim.gross_taxable_income + plan.wendy.gross_taxable_income)|money }}</td></tr>
+            <tr><td>UK Income Tax</td><td class="numeric">({{ plan.tim.income_tax|money }})</td><td class="numeric">({{ plan.wendy.income_tax|money }})</td><td class="numeric">({{ (plan.tim.income_tax + plan.wendy.income_tax)|money }})</td></tr>
+            <tr><td>Foreign tax</td><td class="numeric">—</td><td class="numeric">({{ plan.wendy.foreign_tax|money }})</td><td class="numeric">({{ plan.wendy.foreign_tax|money }})</td></tr>
+            <tr><td>Tax-free ISA income</td><td class="numeric">{{ plan.tim.isa_income|money }}</td><td class="numeric">{{ plan.wendy.isa_income|money }}</td><td class="numeric">{{ (plan.tim.isa_income + plan.wendy.isa_income)|money }}</td></tr>
+            <tr class="strong"><td>Recurring net income</td><td class="numeric">{{ plan.tim.recurring_net_income|money }}</td><td class="numeric">{{ plan.wendy.recurring_net_income|money }}</td><td class="numeric">{{ plan.household_recurring_net_income|money }}</td></tr>
+            <tr><td>Allocated normal expenditure</td><td class="numeric">({{ plan.tim.normal_expenditure|money }})</td><td class="numeric">({{ plan.wendy.normal_expenditure|money }})</td><td class="numeric">({{ plan.household_expenditure|money }})</td></tr>
+            <tr><td>Safety margin</td><td class="numeric">({{ plan.tim.safety_margin|money }})</td><td class="numeric">({{ plan.wendy.safety_margin|money }})</td><td class="numeric">({{ (plan.tim.safety_margin + plan.wendy.safety_margin)|money }})</td></tr>
+          </tbody>
+          <tfoot><tr><td>Provisional annual gift capacity</td><td class="numeric">{{ plan.tim.gift_capacity|money }}</td><td class="numeric">{{ plan.wendy.gift_capacity|money }}</td><td class="numeric">{{ plan.household_gift_capacity|money }}</td></tr></tfoot>
+        </table>
+      </div>
+      <p class="hint">This is a planning indication, not confirmation that a gift qualifies for the IHT exemption. Actual evidence and the donor's maintained standard of living remain decisive.</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading"><h2>Scenario assumptions</h2></div>
+      <form class="scenario-form" method="post" action="/planning">
+        {% if scenario.id %}<input type="hidden" name="scenario_id" value="{{ scenario.id }}">{% endif %}
+        <div class="scenario-section form-row">
+          <label>Scenario name<input name="name" value="{{ scenario.name }}" required></label>
+          <label>Tax assumptions<select name="tax_year">{% for year in tax_years %}<option value="{{ year }}"{% if year == scenario.tax_year %} selected{% endif %}>{{ year }} · England</option>{% endfor %}</select></label>
+        </div>
+
+        <h3>Tim</h3>
+        <div class="scenario-grid">
+          <label>Gross pension withdrawal (£)<input type="number" min="0" step="0.01" name="tim_pension_withdrawal" value="{{ scenario.tim_pension_withdrawal }}" required></label>
+          <label>ISA value (£)<input type="number" min="0" step="0.01" name="tim_isa_value" value="{{ scenario.tim_isa_value }}" required></label>
+          <label>Share of joint expenditure (%)<input type="number" min="0" max="100" step="0.01" name="tim_expense_share_percent" value="{{ scenario.tim_expense_share_percent }}" required></label>
+          <label>Safety margin (£)<input type="number" min="0" step="0.01" name="tim_safety_margin" value="{{ scenario.tim_safety_margin }}" required></label>
+        </div>
+
+        <h3>Wendy</h3>
+        <div class="scenario-grid">
+          <label>UK property profit (£)<input type="number" min="0" step="0.01" name="wendy_uk_property_profit" value="{{ scenario.wendy_uk_property_profit }}" required></label>
+          <label>French property gross profit (£)<input type="number" min="0" step="0.01" name="wendy_french_property_gross" value="{{ scenario.wendy_french_property_gross }}" required></label>
+          <label>French tax paid (£)<input type="number" min="0" step="0.01" name="wendy_french_tax_paid" value="{{ scenario.wendy_french_tax_paid }}" required></label>
+          <label>Sole-trade profit (£)<input type="number" min="0" step="0.01" name="wendy_sole_trade_profit" value="{{ scenario.wendy_sole_trade_profit }}" required></label>
+          <label>ISA value (£)<input type="number" min="0" step="0.01" name="wendy_isa_value" value="{{ scenario.wendy_isa_value }}" required></label>
+          <label>Safety margin (£)<input type="number" min="0" step="0.01" name="wendy_safety_margin" value="{{ scenario.wendy_safety_margin }}" required></label>
+        </div>
+
+        <h3>Household and capital</h3>
+        <div class="scenario-grid">
+          <label>ISA natural yield (%)<input type="number" min="0" step="0.01" name="isa_yield_percent" value="{{ scenario.isa_yield_percent }}" required></label>
+          <label>Normal expenditure (£)<input type="number" min="0" step="0.01" name="household_expenditure" value="{{ scenario.household_expenditure }}" required></label>
+          <label>Wendy PCLS (£, capital)<input type="number" min="0" step="0.01" name="wendy_pcls" value="{{ scenario.wendy_pcls }}" required></label>
+          <label>ISA subscriptions (£, capital)<input type="number" min="0" step="0.01" name="isa_subscriptions" value="{{ scenario.isa_subscriptions }}" required></label>
+        </div>
+
+        <h3>Timeline and pension balances</h3>
+        <div class="scenario-grid">
+          <label>Projection starts (tax-year opening)<input type="number" min="2026" max="2100" step="1" name="projection_start_year" value="{{ scenario.projection_start_year }}" required></label>
+          <label>Projection years<input type="number" min="1" max="50" step="1" name="projection_years" value="{{ scenario.projection_years }}" required></label>
+          <label>Investment growth (%)<input type="number" min="-100" step="0.01" name="investment_growth_percent" value="{{ scenario.investment_growth_percent }}" required></label>
+          <label>Inflation (%)<input type="number" min="-100" step="0.01" name="inflation_percent" value="{{ scenario.inflation_percent }}" required></label>
+          <label>High-spend years<input type="number" min="0" max="50" step="1" name="high_spend_years" value="{{ scenario.high_spend_years }}" required></label>
+          <label>Later annual expenditure (£)<input type="number" min="0" step="0.01" name="later_household_expenditure" value="{{ scenario.later_household_expenditure }}" required></label>
+          <label>Tim crystallised SIPP (£)<input type="number" min="0" step="0.01" name="tim_sipp_crystallised" value="{{ scenario.tim_sipp_crystallised }}" required></label>
+          <label>Tim uncrystallised SIPP (£)<input type="number" min="0" step="0.01" name="tim_sipp_uncrystallised" value="{{ scenario.tim_sipp_uncrystallised }}" required></label>
+          <label>Wendy crystallised SIPP (£)<input type="number" min="0" step="0.01" name="wendy_sipp_crystallised" value="{{ scenario.wendy_sipp_crystallised }}" required></label>
+          <label>Wendy uncrystallised SIPP (£)<input type="number" min="0" step="0.01" name="wendy_sipp_uncrystallised" value="{{ scenario.wendy_sipp_uncrystallised }}" required></label>
+          <label>Wendy annual crystallisation (£)<input type="number" min="0" step="0.01" name="wendy_annual_crystallisation" value="{{ scenario.wendy_annual_crystallisation }}" required></label>
+          <label>Wendy lump sum allowance (£)<input type="number" min="0" step="0.01" name="wendy_lump_sum_allowance" value="{{ scenario.wendy_lump_sum_allowance }}" required></label>
+        </div>
+
+        <h3>State Pension</h3>
+        <div class="scenario-grid">
+          <label>Tim starts<input type="date" name="tim_state_pension_start" value="{{ scenario.tim_state_pension_start.isoformat() }}" required></label>
+          <label>Wendy starts<input type="date" name="wendy_state_pension_start" value="{{ scenario.wendy_state_pension_start.isoformat() }}" required></label>
+          <label>Full annual rate (£)<input type="number" min="0" step="0.01" name="state_pension_annual" value="{{ scenario.state_pension_annual }}" required></label>
+          <label>Annual growth assumption (%)<input type="number" min="-100" step="0.01" name="state_pension_growth_percent" value="{{ scenario.state_pension_growth_percent }}" required></label>
+        </div>
+        <label>Notes<textarea name="notes">{{ scenario.notes or '' }}</textarea></label>
+        <div class="scenario-actions">
+          {% if scenario.id %}<label class="checkbox-label"><input type="checkbox" name="save_as_new" value="yes"> Save as a new scenario</label>{% endif %}
+          <button type="submit">Save and calculate</button>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}

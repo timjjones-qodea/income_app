@@ -26,10 +26,13 @@ from app.models import (
     ImportJob,
     ImportRow,
     Person,
+    PlanningScenario,
     Security,
     SecurityIncomeAssumption,
     Transaction,
+    default_planning_scenario,
 )
+from app.planning import ENGLAND_TAX_RULES, evaluate_scenario, project_scenario
 from app.security_matching import match_security, save_manual_mapping
 from app.services import (
     ImportErrorDetail,
@@ -191,6 +194,13 @@ def seed_reference_data(db: Session) -> None:
         ):
             account.aic_portfolio_url = direct_aic_url
     seed_vanguard_money_market_security(db)
+    if not db.scalar(select(PlanningScenario.id).limit(1)):
+        baseline = default_planning_scenario("April 2027 baseline")
+        baseline.notes = (
+            "Initial working scenario. Wendy's first PCLS must be on or after "
+            "23 May 2027 unless her scheme confirms a protected pension age."
+        )
+        db.add(baseline)
     db.commit()
 
 
@@ -273,6 +283,16 @@ def render(request: Request, name: str, **context):
         name=name,
         context={"request": request, "today": date.today(), **context},
     )
+
+
+def decimal_form(value: str, label: str, *, minimum: Decimal = Decimal("0")) -> Decimal:
+    try:
+        parsed = Decimal(value.replace(",", "").replace("£", "").strip())
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"{label} must be a number") from exc
+    if parsed < minimum:
+        raise HTTPException(status_code=400, detail=f"{label} must be at least {minimum}")
+    return parsed
 
 
 @app.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
@@ -1074,6 +1094,142 @@ def save_assumption(
 @app.get("/reconciliation", response_class=HTMLResponse)
 def reconciliation(request: Request, db: Session = Depends(get_db)):
     return render(request, "reconciliation.html", rows=reconciliation_rows(db))
+
+
+@app.get("/planning", response_class=HTMLResponse)
+def planning(
+    request: Request,
+    scenario_id: int | None = None,
+    new: bool = False,
+    saved: bool = False,
+    db: Session = Depends(get_db),
+):
+    scenarios = db.scalars(select(PlanningScenario).order_by(PlanningScenario.name)).all()
+    scenario = None if new else (db.get(PlanningScenario, scenario_id) if scenario_id else None)
+    if scenario_id and not scenario:
+        raise HTTPException(status_code=404, detail="Planning scenario not found")
+    if not scenario and not new and scenarios:
+        scenario = scenarios[0]
+    if not scenario:
+        scenario = default_planning_scenario()
+    rules = ENGLAND_TAX_RULES.get(scenario.tax_year)
+    if not rules:
+        raise HTTPException(status_code=400, detail="Unsupported planning tax year")
+    return render(
+        request,
+        "planning.html",
+        scenarios=scenarios,
+        scenario=scenario,
+        plan=evaluate_scenario(scenario, rules),
+        projection=project_scenario(scenario, rules),
+        tax_years=sorted(ENGLAND_TAX_RULES, reverse=True),
+        is_new=scenario.id is None,
+        saved=saved,
+    )
+
+
+@app.post("/planning")
+def save_planning_scenario(
+    scenario_id: int | None = Form(None),
+    save_as_new: str | None = Form(None),
+    name: str = Form(...),
+    tax_year: str = Form(...),
+    tim_pension_withdrawal: str = Form(...),
+    tim_isa_value: str = Form(...),
+    wendy_isa_value: str = Form(...),
+    isa_yield_percent: str = Form(...),
+    wendy_uk_property_profit: str = Form(...),
+    wendy_french_property_gross: str = Form(...),
+    wendy_french_tax_paid: str = Form(...),
+    wendy_sole_trade_profit: str = Form(...),
+    household_expenditure: str = Form(...),
+    tim_expense_share_percent: str = Form(...),
+    tim_safety_margin: str = Form(...),
+    wendy_safety_margin: str = Form(...),
+    wendy_pcls: str = Form(...),
+    isa_subscriptions: str = Form(...),
+    projection_start_year: int = Form(...),
+    projection_years: int = Form(...),
+    investment_growth_percent: str = Form(...),
+    inflation_percent: str = Form(...),
+    high_spend_years: int = Form(...),
+    later_household_expenditure: str = Form(...),
+    tim_sipp_crystallised: str = Form(...),
+    tim_sipp_uncrystallised: str = Form(...),
+    wendy_sipp_crystallised: str = Form(...),
+    wendy_sipp_uncrystallised: str = Form(...),
+    wendy_annual_crystallisation: str = Form(...),
+    wendy_lump_sum_allowance: str = Form(...),
+    tim_state_pension_start: date = Form(...),
+    wendy_state_pension_start: date = Form(...),
+    state_pension_annual: str = Form(...),
+    state_pension_growth_percent: str = Form(...),
+    notes: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    name = name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Scenario name is required")
+    if tax_year not in ENGLAND_TAX_RULES:
+        raise HTTPException(status_code=400, detail="Unsupported planning tax year")
+    create_new = scenario_id is None or save_as_new == "yes"
+    scenario = default_planning_scenario(name) if create_new else db.get(PlanningScenario, scenario_id)
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Planning scenario not found")
+    duplicate = db.scalar(select(PlanningScenario).where(PlanningScenario.name == name))
+    if duplicate and duplicate.id != scenario.id:
+        raise HTTPException(status_code=400, detail="A scenario with this name already exists")
+
+    values = {
+        "tim_pension_withdrawal": decimal_form(tim_pension_withdrawal, "Tim withdrawal"),
+        "tim_isa_value": decimal_form(tim_isa_value, "Tim ISA value"),
+        "wendy_isa_value": decimal_form(wendy_isa_value, "Wendy ISA value"),
+        "isa_yield_percent": decimal_form(isa_yield_percent, "ISA yield"),
+        "wendy_uk_property_profit": decimal_form(wendy_uk_property_profit, "UK property profit"),
+        "wendy_french_property_gross": decimal_form(wendy_french_property_gross, "French property profit"),
+        "wendy_french_tax_paid": decimal_form(wendy_french_tax_paid, "French tax"),
+        "wendy_sole_trade_profit": decimal_form(wendy_sole_trade_profit, "Sole-trade profit"),
+        "household_expenditure": decimal_form(household_expenditure, "Household expenditure"),
+        "tim_expense_share_percent": decimal_form(tim_expense_share_percent, "Tim expense share"),
+        "tim_safety_margin": decimal_form(tim_safety_margin, "Tim safety margin"),
+        "wendy_safety_margin": decimal_form(wendy_safety_margin, "Wendy safety margin"),
+        "wendy_pcls": decimal_form(wendy_pcls, "Wendy PCLS"),
+        "isa_subscriptions": decimal_form(isa_subscriptions, "ISA subscriptions"),
+        "investment_growth_percent": decimal_form(investment_growth_percent, "Investment growth", minimum=Decimal("-100")),
+        "inflation_percent": decimal_form(inflation_percent, "Inflation", minimum=Decimal("-100")),
+        "later_household_expenditure": decimal_form(later_household_expenditure, "Later expenditure"),
+        "tim_sipp_crystallised": decimal_form(tim_sipp_crystallised, "Tim crystallised SIPP"),
+        "tim_sipp_uncrystallised": decimal_form(tim_sipp_uncrystallised, "Tim uncrystallised SIPP"),
+        "wendy_sipp_crystallised": decimal_form(wendy_sipp_crystallised, "Wendy crystallised SIPP"),
+        "wendy_sipp_uncrystallised": decimal_form(wendy_sipp_uncrystallised, "Wendy uncrystallised SIPP"),
+        "wendy_annual_crystallisation": decimal_form(wendy_annual_crystallisation, "Wendy annual crystallisation"),
+        "wendy_lump_sum_allowance": decimal_form(wendy_lump_sum_allowance, "Wendy lump sum allowance"),
+        "state_pension_annual": decimal_form(state_pension_annual, "State Pension"),
+        "state_pension_growth_percent": decimal_form(state_pension_growth_percent, "State Pension growth", minimum=Decimal("-100")),
+    }
+    if values["tim_expense_share_percent"] > Decimal("100"):
+        raise HTTPException(status_code=400, detail="Tim expense share cannot exceed 100%")
+    scenario.name = name
+    scenario.tax_year = tax_year
+    if not 1 <= projection_years <= 50:
+        raise HTTPException(status_code=400, detail="Projection length must be between 1 and 50 years")
+    if not 0 <= high_spend_years <= projection_years:
+        raise HTTPException(status_code=400, detail="High-spend years must fit within the projection")
+    if not 2026 <= projection_start_year <= 2100:
+        raise HTTPException(status_code=400, detail="Projection start year is outside the supported range")
+    scenario.projection_start_year = projection_start_year
+    scenario.projection_years = projection_years
+    scenario.high_spend_years = high_spend_years
+    scenario.tim_state_pension_start = tim_state_pension_start
+    scenario.wendy_state_pension_start = wendy_state_pension_start
+    scenario.notes = notes.strip() or None
+    for field, value in values.items():
+        setattr(scenario, field, value)
+    if create_new:
+        db.add(scenario)
+    db.commit()
+    db.refresh(scenario)
+    return RedirectResponse(f"/planning?scenario_id={scenario.id}&saved=true", status_code=303)
 
 
 def csv_response(filename: str, headers: list[str], rows: list[list]) -> Response:

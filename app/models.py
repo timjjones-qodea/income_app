@@ -217,3 +217,83 @@ class SecurityIncomeAssumption(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     security: Mapped[Security] = relationship()
+
+
+class PlanningScenario(Base):
+    __tablename__ = "planning_scenarios"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(160), unique=True)
+    tax_year: Mapped[str] = mapped_column(String(9), default="2026/27")
+    tim_pension_withdrawal: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=180000)
+    tim_isa_value: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=650000)
+    wendy_isa_value: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=650000)
+    isa_yield_percent: Mapped[Decimal] = mapped_column(Numeric(8, 4), default=3.5)
+    wendy_uk_property_profit: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=34000)
+    wendy_french_property_gross: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=14100)
+    wendy_french_tax_paid: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=3600)
+    wendy_sole_trade_profit: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=6500)
+    household_expenditure: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=75000)
+    tim_expense_share_percent: Mapped[Decimal] = mapped_column(Numeric(8, 4), default=50)
+    tim_safety_margin: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=0)
+    wendy_safety_margin: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=0)
+    wendy_pcls: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=50000)
+    isa_subscriptions: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=40000)
+    projection_start_year: Mapped[int] = mapped_column(Integer, default=2027)
+    projection_years: Mapped[int] = mapped_column(Integer, default=20)
+    investment_growth_percent: Mapped[Decimal] = mapped_column(Numeric(8, 4), default=5)
+    inflation_percent: Mapped[Decimal] = mapped_column(Numeric(8, 4), default=2.5)
+    high_spend_years: Mapped[int] = mapped_column(Integer, default=10)
+    later_household_expenditure: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=45000)
+    tim_sipp_crystallised: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=1325000)
+    tim_sipp_uncrystallised: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=1402000)
+    wendy_sipp_crystallised: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=0)
+    wendy_sipp_uncrystallised: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=650000)
+    wendy_annual_crystallisation: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=200000)
+    wendy_lump_sum_allowance: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=268275)
+    tim_state_pension_start: Mapped[date] = mapped_column(Date, default=date(2033, 11, 13))
+    wendy_state_pension_start: Mapped[date] = mapped_column(Date, default=date(2039, 5, 23))
+    state_pension_annual: Mapped[Decimal] = mapped_column(Numeric(20, 2), default=12547.60)
+    state_pension_growth_percent: Mapped[Decimal] = mapped_column(Numeric(8, 4), default=2.5)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+
+def default_planning_scenario(name: str = "New scenario") -> PlanningScenario:
+    return PlanningScenario(
+        name=name,
+        tax_year="2026/27",
+        tim_pension_withdrawal=Decimal("180000"),
+        tim_isa_value=Decimal("650000"),
+        wendy_isa_value=Decimal("650000"),
+        isa_yield_percent=Decimal("3.5"),
+        wendy_uk_property_profit=Decimal("34000"),
+        wendy_french_property_gross=Decimal("14100"),
+        wendy_french_tax_paid=Decimal("3600"),
+        wendy_sole_trade_profit=Decimal("6500"),
+        household_expenditure=Decimal("75000"),
+        tim_expense_share_percent=Decimal("50"),
+        tim_safety_margin=Decimal("0"),
+        wendy_safety_margin=Decimal("0"),
+        wendy_pcls=Decimal("50000"),
+        isa_subscriptions=Decimal("40000"),
+        projection_start_year=2027,
+        projection_years=20,
+        investment_growth_percent=Decimal("5"),
+        inflation_percent=Decimal("2.5"),
+        high_spend_years=10,
+        later_household_expenditure=Decimal("45000"),
+        tim_sipp_crystallised=Decimal("1325000"),
+        tim_sipp_uncrystallised=Decimal("1402000"),
+        wendy_sipp_crystallised=Decimal("0"),
+        wendy_sipp_uncrystallised=Decimal("650000"),
+        wendy_annual_crystallisation=Decimal("200000"),
+        wendy_lump_sum_allowance=Decimal("268275"),
+        tim_state_pension_start=date(2033, 11, 13),
+        wendy_state_pension_start=date(2039, 5, 23),
+        state_pension_annual=Decimal("12547.60"),
+        state_pension_growth_percent=Decimal("2.5"),
+    )

@@ -201,6 +201,24 @@ details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); fo
 .aic-account > .button { justify-self: start; }
 .aic-account form { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 8px; }
 .account-form { display: grid; grid-template-columns: 2fr 1fr 1fr 2fr 2fr auto; align-items: end; gap: 10px; padding-top: 15px; }
+.planning-layout { display: grid; grid-template-columns: 235px minmax(0, 1fr); gap: 22px; align-items: start; }
+.scenario-list { position: sticky; top: 18px; padding: 14px; }
+.scenario-list .panel-heading { padding: 6px 7px 10px; margin: 0; }
+.scenario-link { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; padding: 11px 12px; border-radius: 7px; color: var(--ink); }
+.scenario-link:hover { background: #f4f8f5; text-decoration: none; }
+.scenario-link.active { background: var(--green-light); color: var(--green); }
+.scenario-link small { color: var(--muted); }
+.planning-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.planning-metrics strong { font-size: 26px; }
+.scenario-form { display: grid; gap: 17px; }
+.scenario-form h3 { margin: 5px 0 -5px; padding-top: 15px; border-top: 1px solid var(--line); font-size: 15px; }
+.scenario-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.scenario-actions { display: flex; align-items: center; justify-content: flex-end; gap: 18px; }
+.checkbox-label { flex-direction: row; align-items: center; }
+.checkbox-label input { width: auto; min-height: 0; }
+.projection-table { min-width: 1420px; }
+.projection-table-wrap { max-height: 590px; overflow: auto; }
+.projection-table thead { position: sticky; top: 0; z-index: 1; }
 @media (max-width: 900px) {
   .topbar { height: auto; padding: 16px 20px; align-items: flex-start; }
   nav { flex-wrap: wrap; justify-content: flex-end; gap: 10px 16px; }
@@ -213,6 +231,9 @@ details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); fo
   .compact-steps { margin-top: 14px; }
   .upload-controls { grid-template-columns: 1fr; }
   .income-chart { grid-template-columns: repeat(12, 58px); overflow-x: auto; padding-bottom: 12px; }
+  .planning-layout { grid-template-columns: 1fr; }
+  .scenario-list { position: static; }
+  .planning-metrics, .scenario-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 600px) {
   .topbar { display: block; }
@@ -221,5 +242,6 @@ details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); fo
   .page-heading { display: block; }
   .page-heading > .button { display: inline-block; margin-top: 15px; }
   .metrics { grid-template-columns: 1fr; }
+  .planning-metrics, .scenario-grid { grid-template-columns: 1fr; }
   .table-scroll { overflow-x: auto; }
 }

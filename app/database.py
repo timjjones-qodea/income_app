@@ -50,3 +50,28 @@ def init_db() -> None:
         if "tax_treatment" not in columns:
             with engine.begin() as connection:
                 connection.execute(text("ALTER TABLE accounts ADD COLUMN tax_treatment VARCHAR(160)"))
+        planning_columns = {item["name"] for item in inspect(engine).get_columns("planning_scenarios")}
+        planning_additions = {
+            "projection_start_year": "INTEGER NOT NULL DEFAULT 2027",
+            "projection_years": "INTEGER NOT NULL DEFAULT 20",
+            "investment_growth_percent": "NUMERIC(8,4) NOT NULL DEFAULT 5",
+            "inflation_percent": "NUMERIC(8,4) NOT NULL DEFAULT 2.5",
+            "high_spend_years": "INTEGER NOT NULL DEFAULT 10",
+            "later_household_expenditure": "NUMERIC(20,2) NOT NULL DEFAULT 45000",
+            "tim_sipp_crystallised": "NUMERIC(20,2) NOT NULL DEFAULT 1325000",
+            "tim_sipp_uncrystallised": "NUMERIC(20,2) NOT NULL DEFAULT 1402000",
+            "wendy_sipp_crystallised": "NUMERIC(20,2) NOT NULL DEFAULT 0",
+            "wendy_sipp_uncrystallised": "NUMERIC(20,2) NOT NULL DEFAULT 650000",
+            "wendy_annual_crystallisation": "NUMERIC(20,2) NOT NULL DEFAULT 200000",
+            "wendy_lump_sum_allowance": "NUMERIC(20,2) NOT NULL DEFAULT 268275",
+            "tim_state_pension_start": "DATE NOT NULL DEFAULT '2033-11-13'",
+            "wendy_state_pension_start": "DATE NOT NULL DEFAULT '2039-05-23'",
+            "state_pension_annual": "NUMERIC(20,2) NOT NULL DEFAULT 12547.60",
+            "state_pension_growth_percent": "NUMERIC(8,4) NOT NULL DEFAULT 2.5",
+        }
+        with engine.begin() as connection:
+            for column, definition in planning_additions.items():
+                if column not in planning_columns:
+                    connection.execute(
+                        text(f"ALTER TABLE planning_scenarios ADD COLUMN {column} {definition}")
+                    )

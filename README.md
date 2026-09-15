@@ -52,6 +52,9 @@ Tax labels are currently descriptive. Detailed tax calculation is a planned buil
 - Securities view for unmatched rows and manual income assumptions.
 - Reconciliation view comparing actual dividends with dividend events when those events exist.
 - CSV reports for income, holdings/planning income, unmatched rows and reconciliation.
+- Named retirement and estate-planning scenarios with transparent per-person tax, expenditure allocation, safety margins and provisional gift capacity.
+- Capital-aware treatment that keeps pension commencement lump sums and ISA subscriptions outside normal-expenditure-out-of-income capacity.
+- Multi-year pension, State Pension, expenditure and gift-capacity projections with explicit growth, inflation and tax-rule assumptions.
 
 ## Data-source priority
 
