@@ -236,6 +236,18 @@ details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); fo
 .pair-drop-zone { min-height: 230px; }
 .pair-preview { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
 .pair-preview span { padding: 7px 11px; border-radius: 20px; background: var(--green-light); color: var(--green); font-size: 12px; font-weight: 700; }
+.summary-view-actions { display: flex; align-items: center; gap: 14px; }
+.icon-toggle { display: inline-flex; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: 7px; background: #f4f7f5; }
+.icon-button { display: grid; place-items: center; width: 34px; height: 32px; padding: 0; border-radius: 5px; background: transparent; color: var(--muted); }
+.icon-button:hover, .icon-button:focus-visible { background: #fff; color: var(--green); outline: none; }
+.icon-button.active { background: var(--green); color: #fff; box-shadow: 0 1px 3px rgba(16,43,34,.16); }
+.icon-button svg { width: 20px; height: 20px; fill: currentColor; }
+.month-view-note { margin: 0 0 12px; }
+.month-summary-table { min-width: 1510px; table-layout: fixed; font-size: 12px; }
+.month-summary-table th:first-child, .month-summary-table td:first-child { width: 150px; position: sticky; left: 0; z-index: 1; background: #fff; }
+.month-summary-table thead th:first-child, .month-summary-table tfoot td:first-child { background: #f8faf8; }
+.month-summary-table th:not(:first-child), .month-summary-table td:not(:first-child) { width: 98px; padding-left: 8px; padding-right: 8px; }
+.month-summary-table th:last-child, .month-summary-table td:last-child { width: 118px; background: #f8faf8; }
 .planning-layout { display: grid; grid-template-columns: 235px minmax(0, 1fr); gap: 22px; align-items: start; }
 .scenario-list { position: sticky; top: 18px; padding: 14px; }
 .scenario-list .panel-heading { padding: 6px 7px 10px; margin: 0; }

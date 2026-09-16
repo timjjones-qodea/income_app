@@ -35,10 +35,14 @@
   <article><span>Planning income estimate</span><strong>{{ planning_income|money }}</strong><small>Annualised from current holdings</small></article>
   <article><span>Actual versus planning</span><strong>{{ actual_vs_planning|money }}</strong><small>Different basis: received cash versus current run-rate</small></article>
 </section>
-<section class="panel"><div class="panel-heading"><h2>Annual summary</h2><p class="muted">{{ period_label }}</p></div>
-{% if annual %}<table><thead><tr><th>Period</th><th>Person</th><th>Account</th><th class="numeric">Dividends</th><th class="numeric">Interest</th><th class="numeric">Total</th></tr></thead><tbody>
+<section class="panel annual-summary-panel"><div class="panel-heading"><h2>Annual summary</h2><div class="summary-view-actions"><span class="muted">{{ period_label }}</span><div class="icon-toggle" role="group" aria-label="Annual summary view"><button type="button" class="icon-button active" id="summary-list-button" aria-label="List view" title="List view" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h2v2H4zm4 0h12v2H8zM4 11h2v2H4zm4 0h12v2H8zM4 16h2v2H4zm4 0h12v2H8z"/></svg></button><button type="button" class="icon-button" id="summary-month-button" aria-label="Month view" title="Month view" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h2v2h10V3h2v2h2v16H3V5h2zm14 7H5v9h14zM7 12h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zM7 16h2v2H7zm4 0h2v2h-2z"/></svg></button></div></div></div>
+{% if annual %}<div id="annual-list-view" class="table-scroll"><table><thead><tr><th>Period</th><th>Person</th><th>Account</th><th class="numeric">Dividends</th><th class="numeric">Interest</th><th class="numeric">Total</th></tr></thead><tbody>
 {% for row in annual %}<tr><td>{{ row.summary_period }}</td><td>{{ row.person }}</td><td>{{ row.account }}</td><td class="numeric">{{ row.dividends|money }}</td><td class="numeric">{{ row.interest|money }}</td><td class="numeric strong">{{ row.total|money }}</td></tr>{% endfor %}
-</tbody><tfoot><tr><td colspan="3">Total</td><td class="numeric">{{ summary.dividends|money }}</td><td class="numeric">{{ summary.interest|money }}</td><td class="numeric strong">{{ summary.total|money }}</td></tr></tfoot></table>{% else %}<div class="empty">No imported income transactions match these filters.</div>{% endif %}</section>
+</tbody><tfoot><tr><td colspan="3">Total</td><td class="numeric">{{ summary.dividends|money }}</td><td class="numeric">{{ summary.interest|money }}</td><td class="numeric strong">{{ summary.total|money }}</td></tr></tfoot></table></div>
+<div id="annual-month-view" class="table-scroll" hidden><p class="hint month-view-note">Income received by payment month, including dividends and interest. For a trailing period, the same month in adjacent calendar years is combined.</p><table class="month-summary-table"><thead><tr><th>Account</th>{% for month in month_labels %}<th class="numeric">{{ month }}</th>{% endfor %}<th class="numeric">Total</th></tr></thead><tbody>
+{% for row in monthly_account_rows %}<tr><td><strong>{{ row.account }}</strong><small class="block">{{ row.person }}</small></td>{% for amount in row.months %}<td class="numeric">{{ amount|money if amount else "—" }}</td>{% endfor %}<td class="numeric strong">{{ row.total|money }}</td></tr>{% endfor %}
+</tbody><tfoot><tr><td>Monthly total</td>{% for amount in monthly_totals %}<td class="numeric">{{ amount|money if amount else "—" }}</td>{% endfor %}<td class="numeric strong">{{ summary.total|money }}</td></tr></tfoot></table></div>
+{% else %}<div class="empty">No imported income transactions match these filters.</div>{% endif %}</section>
 <section class="panel"><div class="panel-heading"><h2>Receipt audit trail</h2></div>
 {% if rows %}<div class="table-scroll"><table><thead><tr><th>Date</th><th>Tax year</th><th>Account</th><th>Security</th><th>Type</th><th class="numeric">Quantity paid</th><th class="numeric">Per share</th><th class="numeric">Amount</th><th>Import</th></tr></thead><tbody>
 {% for row in rows %}<tr><td>{{ row.transaction.transaction_date.strftime("%d %b %Y") }}</td><td>{{ row.tax_year }}</td><td>{{ row.account.account_name }}</td><td>{{ row.security.ticker if row.security else "Unmatched" }}<small class="block">{{ row.transaction.description }}</small></td><td>{{ row.transaction.transaction_type }}</td><td class="numeric">{{ "{:,.0f}".format(row.quantity) if row.quantity else "—" }}</td><td class="numeric">{{ "{:.4f}p".format(row.per_share * 100) if row.per_share is not none else "—" }}</td><td class="numeric">{{ row.total|money }}</td><td><a href="/imports/{{ row.transaction.source_import_id }}">#{{ row.transaction.source_import_id }}</a></td></tr>{% endfor %}
@@ -56,5 +60,23 @@
   }
   periodSelector?.addEventListener("change", syncPeriodFields);
   syncPeriodFields();
+
+  const listButton = document.getElementById("summary-list-button");
+  const monthButton = document.getElementById("summary-month-button");
+  const listView = document.getElementById("annual-list-view");
+  const monthView = document.getElementById("annual-month-view");
+  function setSummaryView(view) {
+    const showMonth = view === "month";
+    if (listView) listView.hidden = showMonth;
+    if (monthView) monthView.hidden = !showMonth;
+    listButton?.classList.toggle("active", !showMonth);
+    monthButton?.classList.toggle("active", showMonth);
+    listButton?.setAttribute("aria-pressed", String(!showMonth));
+    monthButton?.setAttribute("aria-pressed", String(showMonth));
+    window.sessionStorage.setItem("income-summary-view", showMonth ? "month" : "list");
+  }
+  listButton?.addEventListener("click", () => setSummaryView("list"));
+  monthButton?.addEventListener("click", () => setSummaryView("month"));
+  setSummaryView(window.sessionStorage.getItem("income-summary-view") || "list");
 </script>
 {% endblock %}

@@ -1162,6 +1162,26 @@ def income_history(
     for row in rows:
         row["summary_period"] = period_label
     annual = aggregate_income(rows, ("summary_period", "person", "account"))
+    monthly_by_account: dict[str, list[Decimal]] = {}
+    for annual_row in annual:
+        monthly_by_account[annual_row["account"]] = [Decimal("0") for _ in range(12)]
+    for row in rows:
+        account_name = row["account"].account_name
+        monthly_by_account.setdefault(account_name, [Decimal("0") for _ in range(12)])
+        monthly_by_account[account_name][row["transaction"].transaction_date.month - 1] += row["total"]
+    monthly_account_rows = [
+        {
+            "person": annual_row["person"],
+            "account": annual_row["account"],
+            "months": monthly_by_account[annual_row["account"]],
+            "total": sum(monthly_by_account[annual_row["account"]], Decimal("0")),
+        }
+        for annual_row in annual
+    ]
+    monthly_totals = [
+        sum((values[index] for values in monthly_by_account.values()), Decimal("0"))
+        for index in range(12)
+    ]
     summary = {
         "dividends": sum((row["dividends"] for row in rows), Decimal("0")),
         "interest": sum((row["interest"] for row in rows), Decimal("0")),
@@ -1175,6 +1195,9 @@ def income_history(
         "income.html",
         rows=rows,
         annual=annual,
+        month_labels=list(month_abbr)[1:],
+        monthly_account_rows=monthly_account_rows,
+        monthly_totals=monthly_totals,
         summary=summary,
         period=period,
         period_label=period_label,
