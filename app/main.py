@@ -291,11 +291,16 @@ def money(value) -> str:
     return f"£{Decimal(value or 0):,.2f}"
 
 
+def money_whole(value) -> str:
+    return f"£{Decimal(value or 0):,.0f}"
+
+
 def percent(value) -> str:
     return f"{Decimal(value or 0) * 100:.2f}%"
 
 
 templates.env.filters["money"] = money
+templates.env.filters["money_whole"] = money_whole
 templates.env.filters["percent"] = percent
 
 
@@ -1142,33 +1147,52 @@ def income_history(
         rows = [row for row in rows if row["account"].wrapper_type == wrapper]
     if security:
         rows = [row for row in rows if row["security"] and row["security"].ticker == security]
+    today = date.today()
+    current_month = today.replace(day=1)
     if period == "trailing":
-        trailing_cutoff = date.today() - timedelta(days=365)
+        period_months = [shift_month(current_month, offset) for offset in range(-11, 1)]
+        trailing_cutoff = period_months[0]
         rows = [
             row
             for row in rows
-            if trailing_cutoff <= row["transaction"].transaction_date <= date.today()
+            if trailing_cutoff <= row["transaction"].transaction_date <= today
         ]
         period_label = "Last 12 months"
+        month_view_note = (
+            f"Income received from {period_months[0].strftime('%b %Y')} to "
+            f"{period_months[-1].strftime('%b %Y')}; "
+            f"{period_months[-1].strftime('%b %Y')} is month to date."
+        )
     elif period == "calendar_year" and calendar_year:
         rows = [row for row in rows if row["calendar_year"] == calendar_year]
         period_label = str(calendar_year)
+        period_months = [date(calendar_year, month, 1) for month in range(1, 13)]
+        month_view_note = f"Income received by payment month during calendar year {calendar_year}."
     elif period == "tax_year" and tax_year:
         rows = [row for row in rows if row["tax_year"] == tax_year]
         period_label = tax_year
+        tax_year_start = int(tax_year.split("/")[0])
+        period_months = [shift_month(date(tax_year_start, 4, 1), offset) for offset in range(12)]
+        month_view_note = f"Income received by payment month during UK tax year {tax_year}."
     else:
         period_label = "All income"
+        period_months = [shift_month(current_month, offset) for offset in range(-11, 1)]
+        month_view_note = "Income received by payment month."
 
     for row in rows:
         row["summary_period"] = period_label
     annual = aggregate_income(rows, ("summary_period", "person", "account"))
+    month_indexes = {(month.year, month.month): index for index, month in enumerate(period_months)}
     monthly_by_account: dict[str, list[Decimal]] = {}
     for annual_row in annual:
         monthly_by_account[annual_row["account"]] = [Decimal("0") for _ in range(12)]
     for row in rows:
         account_name = row["account"].account_name
         monthly_by_account.setdefault(account_name, [Decimal("0") for _ in range(12)])
-        monthly_by_account[account_name][row["transaction"].transaction_date.month - 1] += row["total"]
+        transaction_date = row["transaction"].transaction_date
+        month_index = month_indexes.get((transaction_date.year, transaction_date.month))
+        if month_index is not None:
+            monthly_by_account[account_name][month_index] += row["total"]
     monthly_account_rows = [
         {
             "person": annual_row["person"],
@@ -1195,7 +1219,8 @@ def income_history(
         "income.html",
         rows=rows,
         annual=annual,
-        month_labels=list(month_abbr)[1:],
+        month_labels=[month.strftime("%b-%y") for month in period_months],
+        month_view_note=month_view_note,
         monthly_account_rows=monthly_account_rows,
         monthly_totals=monthly_totals,
         summary=summary,

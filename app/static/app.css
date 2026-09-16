@@ -243,11 +243,11 @@ details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); fo
 .icon-button.active { background: var(--green); color: #fff; box-shadow: 0 1px 3px rgba(16,43,34,.16); }
 .icon-button svg { width: 20px; height: 20px; fill: currentColor; }
 .month-view-note { margin: 0 0 12px; }
-.month-summary-table { min-width: 1510px; table-layout: fixed; font-size: 12px; }
-.month-summary-table th:first-child, .month-summary-table td:first-child { width: 150px; position: sticky; left: 0; z-index: 1; background: #fff; }
+.month-summary-table { min-width: 1160px; table-layout: fixed; font-size: 11px; }
+.month-summary-table th:first-child, .month-summary-table td:first-child { width: 145px; position: sticky; left: 0; z-index: 1; background: #fff; }
 .month-summary-table thead th:first-child, .month-summary-table tfoot td:first-child { background: #f8faf8; }
-.month-summary-table th:not(:first-child), .month-summary-table td:not(:first-child) { width: 98px; padding-left: 8px; padding-right: 8px; }
-.month-summary-table th:last-child, .month-summary-table td:last-child { width: 118px; background: #f8faf8; }
+.month-summary-table th:not(:first-child), .month-summary-table td:not(:first-child) { width: 70px; padding-left: 5px; padding-right: 5px; }
+.month-summary-table th:last-child, .month-summary-table td:last-child { width: 92px; background: #f8faf8; }
 .planning-layout { display: grid; grid-template-columns: 235px minmax(0, 1fr); gap: 22px; align-items: start; }
 .scenario-list { position: sticky; top: 18px; padding: 14px; }
 .scenario-list .panel-heading { padding: 6px 7px 10px; margin: 0; }
