@@ -201,6 +201,37 @@ details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); fo
 .aic-account > .button { justify-self: start; }
 .aic-account form { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 8px; }
 .account-form { display: grid; grid-template-columns: 2fr 1fr 1fr 2fr 2fr auto; align-items: end; gap: 10px; padding-top: 15px; }
+.guide-setup { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px 24px; border-left: 4px solid var(--gold); }
+.guide-setup p { margin: 7px 0 0; max-width: 900px; }
+.guide-setup .hint { grid-column: 1 / -1; margin: 0; }
+.guide-account-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; }
+.guide-account-heading h2 { margin-top: 5px; font-family: Georgia, serif; font-size: 29px; font-weight: 500; }
+.guide-account-heading label { width: min(360px, 100%); }
+.guide-progress { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 22px 0 0; padding: 0; list-style: none; }
+.guide-progress li { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; column-gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); background: #f8faf8; }
+.guide-progress li > span { grid-row: 1 / 3; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #dfe5e1; color: #657169; font-weight: 800; }
+.guide-progress li strong { color: inherit; }
+.guide-progress li small { margin-top: 3px; }
+.guide-progress li.active { border-color: #9bbbaa; color: var(--green); background: var(--green-light); box-shadow: inset 0 3px 0 var(--green); }
+.guide-progress li.active > span, .guide-progress li.done > span { background: var(--green); color: #fff; }
+.guide-progress li.done { color: var(--green); }
+.guide-step { padding: 0; overflow: hidden; }
+.guide-step[hidden] { display: none; }
+.guide-step-copy { padding: 24px; }
+.guide-step-copy h2 { margin: 5px 0 14px; font-family: Georgia, serif; font-size: 28px; font-weight: 500; }
+.guide-step-copy .plain-list { margin-bottom: 18px; }
+.guide-step > img, .guide-image-stack img { display: block; width: 100%; height: auto; border-top: 1px solid var(--line); }
+.guide-image-stack { display: grid; gap: 1px; background: var(--line); }
+.watching-status { display: inline-flex; align-items: center; gap: 9px; padding: 9px 12px; border-radius: 20px; background: #f0f5f2; color: var(--green); font-size: 13px; font-weight: 700; }
+.watching-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(20,92,67,.13); }
+.guide-complete { padding: 26px; border-top: 4px solid var(--green); }
+.guide-complete h2 { margin: 5px 0 8px; font-family: Georgia, serif; font-size: 29px; font-weight: 500; }
+.guide-message { padding: 14px 16px; border-radius: 7px; background: #f0f3f1; color: var(--ink); }
+.guide-message.ok { background: var(--green-light); color: var(--green); }
+.guide-message.warning { background: #fff5dc; color: #75520e; }
+.guide-message.error { background: #f9e1df; color: var(--red); }
+.guide-events-panel details { padding-top: 7px; }
+.guide-events-panel details p { margin-bottom: 12px; }
 .planning-layout { display: grid; grid-template-columns: 235px minmax(0, 1fr); gap: 22px; align-items: start; }
 .scenario-list { position: sticky; top: 18px; padding: 14px; }
 .scenario-list .panel-heading { padding: 6px 7px 10px; margin: 0; }
@@ -224,7 +255,10 @@ details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); fo
   .topbar { height: auto; padding: 16px 20px; align-items: flex-start; }
   nav { flex-wrap: wrap; justify-content: flex-end; gap: 10px 16px; }
   .metrics { grid-template-columns: repeat(2, 1fr); }
-  .grid-two, .security-grid, .aic-account-grid, .workflow-steps, .definition-grid, .priority-list { grid-template-columns: 1fr; }
+  .grid-two, .security-grid, .aic-account-grid, .workflow-steps, .definition-grid, .priority-list, .guide-progress { grid-template-columns: 1fr; }
+  .guide-setup { grid-template-columns: 1fr; }
+  .guide-account-heading { display: block; }
+  .guide-account-heading label { margin-top: 15px; width: 100%; }
   .detail-grid { grid-template-columns: 1fr; }
   .detail-heading { display: block; }
   .detail-heading form { margin-top: 12px; }

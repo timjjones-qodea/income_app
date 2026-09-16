@@ -19,6 +19,8 @@ The app should help answer:
 
 Use this sequence for every account.
 
+The preferred route is **Imports → Start guided AJ Bell update**. In Chrome or Edge, grant the page access to the Downloads folder and keep the page open. It ignores files already present, watches for each new AJ Bell CSV, performs the checks below, imports it and deletes the local download only after the server confirms success. Safari and browsers without folder access can use the manual file buttons on the same page; those files must be deleted manually.
+
 ### 1. AJ Bell portfolio CSV
 
 Required first.
@@ -33,6 +35,8 @@ This creates:
 
 The Holdings page and Dashboard portfolio value depend on this file.
 
+The guided workflow also checks that the unmodified filename contains the AJ Bell account code and that it matches the selected INCOME account. The code is remembered for subsequent updates.
+
 ### 2. AJ Bell cash statement CSV
 
 Required for actual income.
@@ -46,6 +50,8 @@ This creates:
 - per-share actual dividend information.
 
 The Income page depends on this file. The app intentionally rejects an AJ Bell cash statement until the matching account has a committed AJ Bell portfolio import, because dividend descriptions are matched to the securities created from holdings.
+
+During a guided update, every dividend security in the cash statement must either appear in the portfolio imported immediately beforehand or already be established in that account's income history (to allow for a holding sold during the year). A genuinely unknown security stops the automatic import for review. Overlapping one-year statements are safe: transactions already present under the same account, date, type, amount, description and security are skipped even if the importer format has changed.
 
 Built-in AJ Bell cash-statement rules:
 

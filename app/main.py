@@ -18,7 +18,14 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db, init_db
-from app.importers import extract_account_code
+from app.importers import (
+    AJ_BELL_CASH_STATEMENT,
+    AJ_BELL_HOLDINGS,
+    detect_file_type,
+    extract_account_code,
+    extract_portfolio_filename_account_code,
+    read_csv,
+)
 from app.models import (
     Account,
     AicPortfolioIncomeSnapshot,
@@ -38,6 +45,7 @@ from app.services import (
     ImportErrorDetail,
     SECURITY_MATCH_REQUIRED_TYPES,
     aggregate_income,
+    cash_dividends_outside_portfolio,
     commit_import,
     create_import_job,
     current_holdings,
@@ -193,6 +201,20 @@ def seed_reference_data(db: Session) -> None:
             and account.aic_portfolio_url.rstrip("/") == old_shared_url
         ):
             account.aic_portfolio_url = direct_aic_url
+        if not account.aj_bell_account_code:
+            portfolio_jobs = db.scalars(
+                select(ImportJob)
+                .where(
+                    ImportJob.account_id == account.id,
+                    ImportJob.detected_file_type == AJ_BELL_HOLDINGS,
+                )
+                .order_by(ImportJob.id.desc())
+            ).all()
+            for portfolio_job in portfolio_jobs:
+                code = extract_portfolio_filename_account_code(portfolio_job.original_filename)
+                if code:
+                    account.aj_bell_account_code = code
+                    break
     seed_vanguard_money_market_security(db)
     if not db.scalar(select(PlanningScenario.id).limit(1)):
         baseline = default_planning_scenario("April 2027 baseline")
@@ -412,6 +434,108 @@ def imports_page(request: Request, db: Session = Depends(get_db)):
     accounts = db.scalars(select(Account).order_by(Account.account_name)).all()
     people = db.scalars(select(Person).order_by(Person.name)).all()
     return render(request, "imports.html", jobs=jobs, accounts=accounts, people=people)
+
+
+@app.get("/imports/aj-bell-update", response_class=HTMLResponse)
+def aj_bell_update_page(request: Request, db: Session = Depends(get_db)):
+    accounts = db.scalars(
+        select(Account).where(Account.provider == "AJ Bell").order_by(Account.owner_person_id, Account.id)
+    ).all()
+    return render(request, "aj_bell_update.html", accounts=accounts)
+
+
+@app.post("/imports/aj-bell-update/upload")
+async def aj_bell_update_upload(
+    file: UploadFile = File(...),
+    account_id: int = Form(...),
+    expected_type: str = Form(...),
+    portfolio_job_id: int | None = Form(None),
+    db: Session = Depends(get_db),
+):
+    account = db.get(Account, account_id)
+    if not account or account.provider != "AJ Bell":
+        raise HTTPException(404, "AJ Bell account not found")
+    if expected_type not in {AJ_BELL_HOLDINGS, AJ_BELL_CASH_STATEMENT}:
+        raise HTTPException(400, "Unexpected workflow step")
+
+    filename = file.filename or "download.csv"
+    content = await file.read()
+    try:
+        headers, _rows = read_csv(content)
+    except (UnicodeDecodeError, ValueError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    detected_type = detect_file_type(headers)
+    if detected_type != expected_type:
+        wanted = "portfolio" if expected_type == AJ_BELL_HOLDINGS else "cash statement"
+        raise HTTPException(400, f"This is not the expected AJ Bell {wanted} CSV")
+
+    if expected_type == AJ_BELL_HOLDINGS:
+        account_code = extract_portfolio_filename_account_code(filename)
+        if not account_code:
+            raise HTTPException(
+                400,
+                "The portfolio filename does not contain an AJ Bell account code. Download it directly from AJ Bell without renaming it.",
+            )
+        code_owner = db.scalar(
+            select(Account).where(
+                Account.aj_bell_account_code == account_code,
+                Account.id != account.id,
+            )
+        )
+        if code_owner:
+            raise HTTPException(
+                400,
+                f"That file belongs to {code_owner.account_name}, not {account.account_name}.",
+            )
+        if account.aj_bell_account_code and account.aj_bell_account_code != account_code:
+            raise HTTPException(
+                400,
+                f"Expected account code {account.aj_bell_account_code}, but the filename contains {account_code}.",
+            )
+        account.aj_bell_account_code = account_code
+        db.commit()
+
+    try:
+        job = create_import_job(db, filename, content, account.id)
+    except ImportErrorDetail as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if job.error_count:
+        raise HTTPException(400, f"Import #{job.id} has {job.error_count} validation error(s) and was not committed")
+
+    portfolio_job = None
+    if expected_type == AJ_BELL_CASH_STATEMENT:
+        portfolio_job = db.get(ImportJob, portfolio_job_id) if portfolio_job_id else None
+        if (
+            not portfolio_job
+            or portfolio_job.account_id != account.id
+            or portfolio_job.detected_file_type != AJ_BELL_HOLDINGS
+            or portfolio_job.status != "COMMITTED"
+        ):
+            raise HTTPException(400, "This cash statement is not paired with this run's committed portfolio")
+        missing = cash_dividends_outside_portfolio(db, job, portfolio_job)
+        if missing:
+            preview = ", ".join(missing[:5])
+            suffix = "…" if len(missing) > 5 else ""
+            raise HTTPException(
+                400,
+                f"Cash statement contains dividend securities not known in the selected account: {preview}{suffix}",
+            )
+
+    try:
+        result = commit_import(db, job)
+    except ImportErrorDetail as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {
+        "ok": True,
+        "job_id": job.id,
+        "account_id": account.id,
+        "account_name": account.account_name,
+        "account_code": account.aj_bell_account_code,
+        "file_type": job.detected_file_type,
+        "committed": result["committed"],
+        "duplicates": result["duplicates"],
+        "warnings": job.warning_count,
+    }
 
 
 @app.get("/imports/warnings", response_class=HTMLResponse)

@@ -236,6 +236,12 @@ def extract_account_code(description: str) -> str | None:
     return match.group(1) if match else None
 
 
+def extract_portfolio_filename_account_code(filename: str) -> str | None:
+    """Return the AJ Bell account code embedded in a portfolio CSV filename."""
+    match = re.search(r"(?:^|-)PORTFOLIO-([A-Z]{4}\d[A-Z0-9]{2})(?:-|\.|$)", filename.upper())
+    return match.group(1) if match else None
+
+
 def classify_transaction(explicit_type: str, description: str) -> str:
     haystack = f"{explicit_type} {description}".lower()
     for transaction_type, words in TYPE_KEYWORDS.items():

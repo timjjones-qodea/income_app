@@ -47,6 +47,7 @@ class Account(Base):
     tax_treatment: Mapped[str | None] = mapped_column(String(160))
     notes: Mapped[str | None] = mapped_column(Text)
     aic_portfolio_url: Mapped[str | None] = mapped_column(Text)
+    aj_bell_account_code: Mapped[str | None] = mapped_column(String(16), unique=True)
     owner: Mapped[Person] = relationship(back_populates="accounts")
 
 

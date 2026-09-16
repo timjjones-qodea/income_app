@@ -11,13 +11,14 @@ from app.importers import (
     AJ_BELL_TRANSACTIONS,
     classify_transaction,
     detect_file_type,
+    extract_portfolio_filename_account_code,
     normalize_name,
     read_csv,
     stage_rows,
 )
 from app.models import AicPortfolioIncomeSnapshot, Security
 from app.security_matching import match_security
-from app.services import commit_import, create_import_job
+from app.services import cash_dividends_outside_portfolio, commit_import, create_import_job
 
 
 def test_supplied_aj_bell_holdings_file_is_parsed():
@@ -30,6 +31,12 @@ def test_supplied_aj_bell_holdings_file_is_parsed():
     city = staged[0]["normalized_json"]
     assert '"ticker": "CTY"' in city
     assert '"quantity": "14570"' in city
+
+
+def test_portfolio_filename_account_code_is_extracted_only_from_expected_pattern():
+    assert extract_portfolio_filename_account_code("portfolio-ABWD2VD-Dealing account-3.csv") == "ABWD2VD"
+    assert extract_portfolio_filename_account_code("cashstatements-14.csv") is None
+    assert extract_portfolio_filename_account_code("renamed-ABWD2VD.csv") is None
 
 
 def test_transaction_format_and_classification():
@@ -55,6 +62,51 @@ def test_duplicate_import_does_not_duplicate_holdings(db, account, tmp_path, mon
     result = commit_import(db, second)
     assert result["committed"] == 0
     assert result["duplicates"] == 11
+
+
+def test_cash_statement_is_checked_against_the_portfolio_from_same_workflow(db, account, tmp_path, monkeypatch):
+    import app.services as services
+
+    monkeypatch.setattr(services, "UPLOAD_DIR", tmp_path)
+    portfolio = (
+        b"Investment,Quantity,Price,Value (GBP),Cost (GBP),Date\n"
+        b"City of London Investment Trust (LSE:CTY),100,4.00,400.00,300.00,16/09/2026\n"
+    )
+    portfolio_job = create_import_job(db, "portfolio-ABCD1EF-ISA.csv", portfolio, account.id)
+    commit_import(db, portfolio_job)
+    cash = (
+        b"Date,Description,Reference,Settlement date,Receipt (GBP),Payment (GBP),Balance (GBP)\n"
+        b"15/09/2026,Dividend 100 CITY OF LONDON INVESTMENT TRUST ORD GBP0.25,-,-,10.00,,100.00\n"
+        b"15/09/2026,Dividend 100 UNKNOWN VCT PLC ORD GBP0.01,-,-,5.00,,105.00\n"
+    )
+    cash_job = create_import_job(db, "cashstatements.csv", cash, account.id)
+    assert cash_dividends_outside_portfolio(db, cash_job, portfolio_job) == ["UNKNOWN VCT PLC"]
+
+
+def test_overlapping_cash_statement_uses_economic_duplicate_guard(db, account, tmp_path, monkeypatch):
+    import app.services as services
+
+    monkeypatch.setattr(services, "UPLOAD_DIR", tmp_path)
+    portfolio = (
+        b"Investment,Quantity,Price,Value (GBP),Cost (GBP),Date\n"
+        b"City of London Investment Trust (LSE:CTY),100,4.00,400.00,300.00,16/09/2026\n"
+    )
+    portfolio_job = create_import_job(db, "portfolio-ABCD1EF-ISA.csv", portfolio, account.id)
+    commit_import(db, portfolio_job)
+    old_format = (
+        b"Date,Type,Description,Amount\n"
+        b"15-Sep-2026,Income,Dividend 100 CITY OF LONDON INVESTMENT TRUST ORD GBP0.25,10.00\n"
+    )
+    first = create_import_job(db, "old.csv", old_format, account.id)
+    assert commit_import(db, first)["committed"] == 1
+    cash = (
+        b"Date,Description,Reference,Settlement date,Receipt (GBP),Payment (GBP),Balance (GBP)\n"
+        b"15/09/2026,Dividend 100 CITY OF LONDON INVESTMENT TRUST ORD GBP0.25,-,-,10.00,,100.00\n"
+    )
+    second = create_import_job(db, "cashstatements.csv", cash, account.id)
+    result = commit_import(db, second)
+    assert result["committed"] == 0
+    assert result["duplicates"] == 1
 
 
 def test_aic_portfolio_income_export(db, account, tmp_path, monkeypatch):

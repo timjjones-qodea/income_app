@@ -42,6 +42,21 @@ class ImportErrorDetail(ValueError):
 SECURITY_MATCH_REQUIRED_TYPES = {"DIVIDEND", "BUY", "SELL"}
 
 
+def match_imported_transaction_security(db: Session, data: dict) -> Security | None:
+    name = data.get("name") or data.get("description") or ""
+    if "VANGUARD INVESTMENTS MONEY MKT FDS" in " ".join(name.upper().split()):
+        vanguard = db.scalar(select(Security).where(Security.ticker == "VASSTAI"))
+        if vanguard:
+            return vanguard
+    return match_security(
+        db,
+        isin=data.get("isin"),
+        sedol=data.get("sedol"),
+        ticker=data.get("ticker"),
+        name=name,
+    )
+
+
 def create_import_job(
     db: Session, filename: str, content: bytes, account_id: int | None
 ) -> ImportJob:
@@ -120,6 +135,81 @@ def count_existing_rows(db: Session, job: ImportJob) -> int:
     return 0
 
 
+def cash_dividends_outside_portfolio(
+    db: Session, cash_job: ImportJob, portfolio_job: ImportJob
+) -> list[str]:
+    """List dividend securities absent from the portfolio just imported in this run."""
+    portfolio_security_ids = {
+        security.id
+        for row in portfolio_job.rows
+        if not row.validation_errors
+        for data in [json.loads(row.normalized_json or "{}")]
+        if data.get("name") and data.get("asset_type") != "Cash"
+        for security in [
+            match_security(
+                db,
+                isin=data.get("isin"),
+                sedol=data.get("sedol"),
+                ticker=data.get("ticker"),
+                name=data.get("name"),
+            )
+        ]
+        if security
+    }
+    known_account_security_ids = set(
+        db.scalars(
+            select(Transaction.security_id).where(
+                Transaction.account_id == cash_job.account_id,
+                Transaction.security_id.is_not(None),
+            )
+        ).all()
+    )
+    allowed_security_ids = portfolio_security_ids | known_account_security_ids
+    missing: set[str] = set()
+    for row in cash_job.rows:
+        if row.validation_errors:
+            continue
+        data = json.loads(row.normalized_json or "{}")
+        if data.get("transaction_type") != "DIVIDEND":
+            continue
+        name = data.get("name") or ""
+        security = match_imported_transaction_security(db, data)
+        if not security or security.id not in allowed_security_ids:
+            missing.add(name or data.get("description") or "Unidentified dividend")
+    return sorted(missing)
+
+
+def existing_economic_transaction(
+    db: Session,
+    job: ImportJob,
+    data: dict,
+    security: Security | None,
+) -> int | None:
+    """Find an overlapping statement row even if importer metadata has changed."""
+    transaction_type = data["transaction_type"]
+    equivalent_types = (
+        ("INTEREST", "GROSS_INTEREST")
+        if transaction_type in {"INTEREST", "GROSS_INTEREST"}
+        else (transaction_type,)
+    )
+    description = " ".join((data.get("description") or "").split())
+    candidates = db.scalars(
+        select(Transaction).where(
+            Transaction.account_id == job.account_id,
+            Transaction.transaction_date == date.fromisoformat(data["transaction_date"]),
+            Transaction.transaction_type.in_(equivalent_types),
+            Transaction.net_amount == Decimal(data["net_amount"]),
+            Transaction.source_import_id != job.id,
+        )
+    ).all()
+    for candidate in candidates:
+        if " ".join(candidate.description.split()) != description:
+            continue
+        if candidate.security_id == (security.id if security else None):
+            return candidate.id
+    return None
+
+
 def commit_import(db: Session, job: ImportJob) -> dict[str, int]:
     if job.status == "COMMITTED":
         return {"committed": 0, "duplicates": job.row_count, "errors": 0}
@@ -166,13 +256,10 @@ def commit_import(db: Session, job: ImportJob) -> dict[str, int]:
                 if duplicate:
                     duplicates += 1
                     continue
-                security = match_security(
-                    db,
-                    isin=data.get("isin"),
-                    sedol=data.get("sedol"),
-                    ticker=data.get("ticker"),
-                    name=data.get("name") or data.get("description"),
-                )
+                security = match_imported_transaction_security(db, data)
+                if existing_economic_transaction(db, job, data, security):
+                    duplicates += 1
+                    continue
                 if (
                     job.detected_file_type == AJ_BELL_CASH_STATEMENT
                     and data["transaction_type"] == "DIVIDEND"

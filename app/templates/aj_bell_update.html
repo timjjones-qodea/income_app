@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}Guided AJ Bell update · Retirement Income{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">Guided data refresh</p><h1>Update every AJ Bell account</h1><p>Keep this page open while you download each portfolio and one-year cash statement.</p></div>
+  <a class="button secondary" href="/imports">Back to imports</a>
+</div>
+
+<section class="panel guide-setup" id="guide-setup">
+  <div>
+    <h2>First, connect your Downloads folder</h2>
+    <p>The folder remains on this computer. Your browser sends only the two CSVs you download during this workflow; after a successful checked import, it removes that CSV from Downloads.</p>
+  </div>
+  <button type="button" id="choose-downloads">Choose Downloads folder</button>
+  <p class="hint" id="folder-status">Waiting for permission. Chrome or Edge is required for automatic watching and deletion.</p>
+</section>
+
+<section class="panel guide-progress-panel">
+  <div class="guide-account-heading">
+    <div><p class="eyebrow">Current account</p><h2 id="current-account">{{ accounts[0].account_name if accounts else "No AJ Bell accounts" }}</h2><p id="current-account-code" class="hint"></p></div>
+    <label>Account to update
+      <select id="guide-account-select">
+        {% for account in accounts %}<option value="{{ account.id }}" data-name="{{ account.account_name }}" data-code="{{ account.aj_bell_account_code or '' }}">{{ account.account_name }} · {{ account.wrapper_type }}</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+  <ol class="guide-progress" aria-label="Update progress">
+    <li class="active" data-progress="portfolio"><span>1</span><strong>Portfolio CSV</strong><small>Waiting</small></li>
+    <li data-progress="cash"><span>2</span><strong>Cash statement</strong><small>Not started</small></li>
+    <li data-progress="complete"><span>3</span><strong>Account complete</strong><small>Not started</small></li>
+  </ol>
+</section>
+
+<section class="panel guide-step active" id="portfolio-step">
+  <div class="guide-step-copy">
+    <p class="eyebrow">Step 1</p>
+    <h2>Download the portfolio for <span data-account-name></span></h2>
+    <ol class="plain-list">
+      <li>Log in to AJ Bell and use <strong>View account</strong> to select <span data-account-name></span>.</li>
+      <li>Make sure <strong>Portfolio</strong> is selected in Account menu.</li>
+      <li>Open the three-dot table menu and choose <strong>Download CSV</strong>.</li>
+    </ol>
+    <div class="watching-status"><span class="watching-dot"></span><span id="portfolio-watch-text">Connect Downloads to start watching.</span></div>
+  </div>
+  <img src="/static/aj-bell-guide/step-1-portfolio.png" alt="AJ Bell portfolio page with View account, Portfolio and Download CSV highlighted">
+</section>
+
+<section class="panel guide-step" id="cash-step" hidden>
+  <div class="guide-step-copy">
+    <p class="eyebrow">Step 2</p>
+    <h2>Download a one-year cash statement</h2>
+    <ol class="plain-list">
+      <li>Keep <span data-account-name></span> selected in <strong>View account</strong>.</li>
+      <li>Choose <strong>Cash statement</strong> from Account menu.</li>
+      <li>Select <strong>1 Year</strong>, leave the filter set to All, then press the download icon.</li>
+    </ol>
+    <div class="watching-status"><span class="watching-dot"></span><span id="cash-watch-text">Waiting for the cash-statement CSV.</span></div>
+  </div>
+  <div class="guide-image-stack">
+    <img src="/static/aj-bell-guide/step-2-cash-menu.png" alt="AJ Bell Account menu with Cash statement highlighted">
+    <img src="/static/aj-bell-guide/step-3-one-year.png" alt="AJ Bell cash statement page with one-year period and download icon highlighted">
+  </div>
+</section>
+
+<section class="panel guide-step guide-complete" id="complete-step" hidden>
+  <p class="eyebrow">Account complete</p>
+  <h2><span data-account-name></span> has been updated</h2>
+  <p id="complete-summary"></p>
+  <div class="notice"><strong>Before continuing:</strong> in AJ Bell, select the next account in <strong>View account</strong>. Its Account menu should be set to <strong>Portfolio</strong>.</div>
+  <div class="actions"><button type="button" id="next-account">Continue to next account</button><a class="button secondary" href="/imports">Finish for now</a></div>
+</section>
+
+<section class="panel guide-events-panel">
+  <div class="panel-heading"><div><h2>Activity</h2><p class="hint">Files are deleted from Downloads only after the server confirms a successful import.</p></div></div>
+  <div id="guide-message" class="guide-message" role="status">Choose your Downloads folder, then begin with the portfolio shown above.</div>
+  <details><summary>Browser cannot watch Downloads?</summary>
+    <p class="hint">Use these buttons in Safari or if folder permission is unavailable. The same checks are applied, but you will need to delete the downloaded files yourself.</p>
+    <div class="actions">
+      <button type="button" class="button secondary" id="manual-portfolio">Choose portfolio CSV</button>
+      <button type="button" class="button secondary" id="manual-cash" disabled>Choose cash statement CSV</button>
+    </div>
+    <input class="visually-hidden" id="manual-file-input" type="file" accept=".csv,text/csv">
+  </details>
+</section>
+
+<script>
+(() => {
+  const HOLDINGS = "AJ_BELL_HOLDINGS";
+  const CASH = "AJ_BELL_CASH_STATEMENT";
+  const accountSelect = document.getElementById("guide-account-select");
+  const message = document.getElementById("guide-message");
+  const folderStatus = document.getElementById("folder-status");
+  const manualInput = document.getElementById("manual-file-input");
+  let directoryHandle = null;
+  let baseline = new Map();
+  let workflowStartedAt = Date.now();
+  let expectedType = HOLDINGS;
+  let portfolioJobId = null;
+  let processing = false;
+  let timer = null;
+  let manualExpectedType = null;
+  let totals = { committed: 0, duplicates: 0, warnings: 0 };
+
+  const selectedOption = () => accountSelect.options[accountSelect.selectedIndex];
+  const accountName = () => selectedOption()?.dataset.name || "this account";
+  const setMessage = (text, kind = "") => {
+    message.textContent = text;
+    message.className = `guide-message ${kind}`;
+  };
+  const updateAccountLabels = () => {
+    document.getElementById("current-account").textContent = accountName();
+    const code = selectedOption()?.dataset.code;
+    document.getElementById("current-account-code").textContent = code ? `AJ Bell account ${code}` : "Account code will be learned from the portfolio filename";
+    document.querySelectorAll("[data-account-name]").forEach((node) => node.textContent = accountName());
+  };
+  const setProgress = (stage) => {
+    const order = ["portfolio", "cash", "complete"];
+    const activeIndex = order.indexOf(stage);
+    document.querySelectorAll("[data-progress]").forEach((node, index) => {
+      node.classList.toggle("active", index === activeIndex);
+      node.classList.toggle("done", index < activeIndex);
+      node.querySelector("small").textContent = index < activeIndex ? "Complete" : index === activeIndex ? "In progress" : "Not started";
+    });
+  };
+  const showStage = (stage) => {
+    document.getElementById("portfolio-step").hidden = stage !== "portfolio";
+    document.getElementById("cash-step").hidden = stage !== "cash";
+    document.getElementById("complete-step").hidden = stage !== "complete";
+    setProgress(stage);
+  };
+
+  async function snapshotDirectory() {
+    const files = new Map();
+    for await (const [name, handle] of directoryHandle.entries()) {
+      if (handle.kind !== "file" || !name.toLowerCase().endsWith(".csv")) continue;
+      const file = await handle.getFile();
+      files.set(name, file.lastModified);
+    }
+    return files;
+  }
+
+  async function processFile(file, handle = null) {
+    if (processing) return;
+    processing = true;
+    const label = expectedType === HOLDINGS ? "portfolio" : "cash statement";
+    setMessage(`Found ${file.name}. Checking the ${label}…`);
+    try {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      form.append("account_id", accountSelect.value);
+      form.append("expected_type", expectedType);
+      if (portfolioJobId) form.append("portfolio_job_id", portfolioJobId);
+      const response = await fetch("/imports/aj-bell-update/upload", { method: "POST", body: form });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.detail || "The file could not be imported");
+      if (handle && directoryHandle) {
+        await directoryHandle.removeEntry(handle.name);
+      }
+      totals.committed += body.committed;
+      totals.duplicates += body.duplicates;
+      totals.warnings += body.warnings;
+      if (expectedType === HOLDINGS) {
+        portfolioJobId = body.job_id;
+        selectedOption().dataset.code = body.account_code || "";
+        expectedType = CASH;
+        document.getElementById("manual-cash").disabled = false;
+        updateAccountLabels();
+        showStage("cash");
+        setMessage(`Portfolio verified and imported. ${file.name} was ${handle ? "removed from Downloads" : "accepted"}. Now download the one-year cash statement.`, "ok");
+      } else {
+        expectedType = null;
+        showStage("complete");
+        document.getElementById("complete-summary").textContent = `${totals.committed} new rows imported, ${totals.duplicates} existing rows safely skipped${totals.warnings ? `, with ${totals.warnings} warning(s) for review` : ""}.`;
+        setMessage(`Cash statement verified against the new portfolio and imported. ${file.name} was ${handle ? "removed from Downloads" : "accepted"}.`, "ok");
+      }
+    } catch (error) {
+      setMessage(`${file.name} was not imported or deleted: ${error.message}`, "error");
+    } finally {
+      processing = false;
+      if (directoryHandle) baseline = await snapshotDirectory();
+    }
+  }
+
+  async function watchDirectory() {
+    if (!directoryHandle || processing || !expectedType) return;
+    for await (const [name, handle] of directoryHandle.entries()) {
+      if (handle.kind !== "file" || !name.toLowerCase().endsWith(".csv")) continue;
+      const file = await handle.getFile();
+      const previous = baseline.get(name);
+      if (previous === undefined || file.lastModified > Math.max(previous, workflowStartedAt)) {
+        await processFile(file, { name });
+        return;
+      }
+    }
+  }
+
+  document.getElementById("choose-downloads").addEventListener("click", async () => {
+    if (!("showDirectoryPicker" in window)) {
+      setMessage("This browser cannot watch Downloads. Use Chrome or Edge, or use the manual buttons below.", "warning");
+      return;
+    }
+    try {
+      directoryHandle = await window.showDirectoryPicker({ id: "aj-bell-downloads", mode: "readwrite", startIn: "downloads" });
+      baseline = await snapshotDirectory();
+      workflowStartedAt = Date.now();
+      folderStatus.textContent = `Watching ${directoryHandle.name}. Existing CSVs are ignored.`;
+      document.getElementById("portfolio-watch-text").textContent = "Watching for a newly downloaded portfolio CSV…";
+      if (timer) clearInterval(timer);
+      timer = setInterval(watchDirectory, 1500);
+      setMessage(`Downloads connected. In AJ Bell, download the portfolio for ${accountName()}.`, "ok");
+    } catch (error) {
+      if (error.name !== "AbortError") setMessage(`Downloads could not be connected: ${error.message}`, "error");
+    }
+  });
+
+  document.getElementById("manual-portfolio").addEventListener("click", () => { manualExpectedType = HOLDINGS; manualInput.click(); });
+  document.getElementById("manual-cash").addEventListener("click", () => { manualExpectedType = CASH; manualInput.click(); });
+  manualInput.addEventListener("change", async () => {
+    if (!manualInput.files.length) return;
+    if (manualExpectedType !== expectedType) {
+      setMessage("That file does not match the current workflow step.", "error");
+      return;
+    }
+    await processFile(manualInput.files[0]);
+    manualInput.value = "";
+  });
+
+  function resetAccount() {
+    expectedType = HOLDINGS;
+    portfolioJobId = null;
+    totals = { committed: 0, duplicates: 0, warnings: 0 };
+    document.getElementById("manual-cash").disabled = true;
+    workflowStartedAt = Date.now();
+    showStage("portfolio");
+    updateAccountLabels();
+    setMessage(`Ready for ${accountName()}. Select it in AJ Bell, ensure Account menu says Portfolio, then download the CSV.`);
+  }
+  accountSelect.addEventListener("change", resetAccount);
+  document.getElementById("next-account").addEventListener("click", () => {
+    if (accountSelect.selectedIndex < accountSelect.options.length - 1) {
+      accountSelect.selectedIndex += 1;
+      resetAccount();
+    } else {
+      setMessage("All configured AJ Bell accounts are complete.", "ok");
+      document.getElementById("next-account").disabled = true;
+    }
+  });
+
+  updateAccountLabels();
+  setProgress("portfolio");
+})();
+</script>
+{% endblock %}

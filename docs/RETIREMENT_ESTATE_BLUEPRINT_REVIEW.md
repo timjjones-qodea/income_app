@@ -273,6 +273,12 @@ Because future ISA allowances are not known permanently, the model holds the ent
 
 Adding income-funded ISA subscriptions reduces baseline cumulative provisional gift capacity from approximately £2.807 million to approximately **£2.592 million** over 20 years. This is the more internally consistent cash-flow result: money cannot be both subscribed to ISAs and gifted.
 
+## MTD Bookkeeper evidence handover
+
+A separate implementation handover has been prepared at `docs/MTD_BOOKKEEPER_ESTATE_PLANNING_HANDOVER.md`. It specifies the household/personal ledger boundary, 2026/27 bank and credit-card baseline, IHT403-aligned classification, donor allocation, internal-transfer controls, gift ledger, annual evidence pack, delivery slices and acceptance criteria.
+
+The recommended implementation order is personal bank accounts first, credit cards and transfer reconciliation second, and the gift/evidence pack third. Household data must remain excluded from Wendy's MTD and TaxNav submissions.
+
 ## Official sources checked
 
 - HMRC Inheritance Tax Manual IHTM14231, IHTM14242, IHTM14250 and IHTM14255.

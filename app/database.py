@@ -50,6 +50,15 @@ def init_db() -> None:
         if "tax_treatment" not in columns:
             with engine.begin() as connection:
                 connection.execute(text("ALTER TABLE accounts ADD COLUMN tax_treatment VARCHAR(160)"))
+        if "aj_bell_account_code" not in columns:
+            with engine.begin() as connection:
+                connection.execute(text("ALTER TABLE accounts ADD COLUMN aj_bell_account_code VARCHAR(16)"))
+                connection.execute(
+                    text(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS ix_accounts_aj_bell_account_code "
+                        "ON accounts (aj_bell_account_code)"
+                    )
+                )
         planning_columns = {item["name"] for item in inspect(engine).get_columns("planning_scenarios")}
         planning_additions = {
             "projection_start_year": "INTEGER NOT NULL DEFAULT 2027",
