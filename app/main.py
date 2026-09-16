@@ -1150,8 +1150,13 @@ def income_history(
     today = date.today()
     current_month = today.replace(day=1)
     if period == "trailing":
-        period_months = [shift_month(current_month, offset) for offset in range(-11, 1)]
-        trailing_cutoff = period_months[0]
+        trailing_cutoff = today - timedelta(days=365)
+        first_period_month = trailing_cutoff.replace(day=1)
+        period_months = []
+        period_month = first_period_month
+        while period_month <= current_month:
+            period_months.append(period_month)
+            period_month = shift_month(period_month, 1)
         rows = [
             row
             for row in rows
@@ -1159,9 +1164,9 @@ def income_history(
         ]
         period_label = "Last 12 months"
         month_view_note = (
-            f"Income received from {period_months[0].strftime('%b %Y')} to "
-            f"{period_months[-1].strftime('%b %Y')}; "
-            f"{period_months[-1].strftime('%b %Y')} is month to date."
+            f"Income received from {trailing_cutoff.strftime('%d %b %Y')} to "
+            f"{today.strftime('%d %b %Y')}. The first and last columns are partial months, "
+            "so this 13-column view reconciles to the exact rolling 12-month total."
         )
     elif period == "calendar_year" and calendar_year:
         rows = [row for row in rows if row["calendar_year"] == calendar_year]
@@ -1185,10 +1190,10 @@ def income_history(
     month_indexes = {(month.year, month.month): index for index, month in enumerate(period_months)}
     monthly_by_account: dict[str, list[Decimal]] = {}
     for annual_row in annual:
-        monthly_by_account[annual_row["account"]] = [Decimal("0") for _ in range(12)]
+        monthly_by_account[annual_row["account"]] = [Decimal("0") for _ in period_months]
     for row in rows:
         account_name = row["account"].account_name
-        monthly_by_account.setdefault(account_name, [Decimal("0") for _ in range(12)])
+        monthly_by_account.setdefault(account_name, [Decimal("0") for _ in period_months])
         transaction_date = row["transaction"].transaction_date
         month_index = month_indexes.get((transaction_date.year, transaction_date.month))
         if month_index is not None:
@@ -1204,7 +1209,7 @@ def income_history(
     ]
     monthly_totals = [
         sum((values[index] for values in monthly_by_account.values()), Decimal("0"))
-        for index in range(12)
+        for index in range(len(period_months))
     ]
     summary = {
         "dividends": sum((row["dividends"] for row in rows), Decimal("0")),
@@ -1214,12 +1219,16 @@ def income_history(
     forward = forward_income_rows(db)
     forward_total = sum((item["forward_income"] for item in forward), Decimal("0"))
     current_value = sum((Decimal(item.market_value) for item in current_holdings(db)), Decimal("0"))
+    month_labels = [month.strftime("%b-%y") for month in period_months]
+    if period == "trailing" and month_labels:
+        month_labels[0] += "*"
+        month_labels[-1] += "*"
     return render(
         request,
         "income.html",
         rows=rows,
         annual=annual,
-        month_labels=[month.strftime("%b-%y") for month in period_months],
+        month_labels=month_labels,
         month_view_note=month_view_note,
         monthly_account_rows=monthly_account_rows,
         monthly_totals=monthly_totals,
