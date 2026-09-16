@@ -19,7 +19,7 @@ The app should help answer:
 
 Use this sequence for every account.
 
-The preferred route is **Imports → Start guided AJ Bell update**. In Chrome or Edge, grant the page access to the Downloads folder and keep the page open. It ignores files already present, watches for each new AJ Bell CSV, performs the checks below, imports it and deletes the local download only after the server confirms success. Safari and browsers without folder access can use the manual file buttons on the same page; those files must be deleted manually.
+The preferred route is **Imports → Start guided AJ Bell update**. For each account, download its AJ Bell portfolio CSV and one-year cash-statement CSV, then drag both files into the guided page together. The app identifies which file is which, verifies the account code in the portfolio filename, checks that the statement covers approximately one year, validates its dividend securities and imports the pair. It then prompts for the next account. This browser-only workflow needs no access to the Downloads folder and works on any Mac with a modern browser.
 
 ### 1. AJ Bell portfolio CSV
 

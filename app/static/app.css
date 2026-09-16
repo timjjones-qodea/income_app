@@ -232,6 +232,10 @@ details { margin-top: 15px; } summary { cursor: pointer; color: var(--green); fo
 .guide-message.error { background: #f9e1df; color: var(--red); }
 .guide-events-panel details { padding-top: 7px; }
 .guide-events-panel details p { margin-bottom: 12px; }
+.pair-upload-panel { border-top: 4px solid var(--green); }
+.pair-drop-zone { min-height: 230px; }
+.pair-preview { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.pair-preview span { padding: 7px 11px; border-radius: 20px; background: var(--green-light); color: var(--green); font-size: 12px; font-weight: 700; }
 .planning-layout { display: grid; grid-template-columns: 235px minmax(0, 1fr); gap: 22px; align-items: start; }
 .scenario-list { position: sticky; top: 18px; padding: 14px; }
 .scenario-list .panel-heading { padding: 6px 7px 10px; margin: 0; }

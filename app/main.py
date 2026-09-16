@@ -538,6 +538,116 @@ async def aj_bell_update_upload(
     }
 
 
+@app.post("/imports/aj-bell-update/pair")
+async def aj_bell_update_pair(
+    files: list[UploadFile] = File(...),
+    account_id: int = Form(...),
+    db: Session = Depends(get_db),
+):
+    account = db.get(Account, account_id)
+    if not account or account.provider != "AJ Bell":
+        raise HTTPException(404, "AJ Bell account not found")
+    if len(files) != 2:
+        raise HTTPException(400, "Drop exactly two CSVs: one portfolio and one cash statement")
+
+    classified: dict[str, tuple[str, bytes]] = {}
+    for upload in files:
+        filename = upload.filename or "download.csv"
+        content = await upload.read()
+        try:
+            headers, _rows = read_csv(content)
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise HTTPException(400, f"{filename}: {exc}") from exc
+        file_type = detect_file_type(headers)
+        if file_type not in {AJ_BELL_HOLDINGS, AJ_BELL_CASH_STATEMENT}:
+            raise HTTPException(400, f"{filename} is not an AJ Bell portfolio or cash-statement CSV")
+        if file_type in classified:
+            raise HTTPException(400, "The pair must contain one portfolio and one cash statement")
+        classified[file_type] = (filename, content)
+    if set(classified) != {AJ_BELL_HOLDINGS, AJ_BELL_CASH_STATEMENT}:
+        raise HTTPException(400, "The pair must contain one portfolio and one cash statement")
+
+    portfolio_filename, portfolio_content = classified[AJ_BELL_HOLDINGS]
+    account_code = extract_portfolio_filename_account_code(portfolio_filename)
+    if not account_code:
+        raise HTTPException(
+            400,
+            "The portfolio filename has no AJ Bell account code. Download it directly from AJ Bell without renaming it.",
+        )
+    code_owner = db.scalar(
+        select(Account).where(
+            Account.aj_bell_account_code == account_code,
+            Account.id != account.id,
+        )
+    )
+    if code_owner:
+        raise HTTPException(400, f"The portfolio belongs to {code_owner.account_name}, not {account.account_name}")
+    if account.aj_bell_account_code and account.aj_bell_account_code != account_code:
+        raise HTTPException(
+            400,
+            f"Expected account code {account.aj_bell_account_code}, but the portfolio contains {account_code}",
+        )
+    account.aj_bell_account_code = account_code
+    db.commit()
+
+    try:
+        portfolio_job = create_import_job(
+            db, portfolio_filename, portfolio_content, account.id
+        )
+    except ImportErrorDetail as exc:
+        raise HTTPException(400, f"Portfolio: {exc}") from exc
+    if portfolio_job.error_count:
+        raise HTTPException(
+            400,
+            f"Portfolio import #{portfolio_job.id} has {portfolio_job.error_count} validation error(s)",
+        )
+    portfolio_result = commit_import(db, portfolio_job)
+
+    cash_filename, cash_content = classified[AJ_BELL_CASH_STATEMENT]
+    try:
+        cash_job = create_import_job(db, cash_filename, cash_content, account.id)
+    except ImportErrorDetail as exc:
+        raise HTTPException(400, f"Cash statement: {exc}") from exc
+    if cash_job.error_count:
+        raise HTTPException(
+            400,
+            f"Cash-statement import #{cash_job.id} has {cash_job.error_count} validation error(s)",
+        )
+    cash_dates = sorted(
+        date.fromisoformat(data["transaction_date"])
+        for row in cash_job.rows
+        if not row.validation_errors
+        for data in [json.loads(row.normalized_json or "{}")]
+        if data.get("transaction_date")
+    )
+    if len(cash_dates) < 2 or (cash_dates[-1] - cash_dates[0]).days < 330:
+        raise HTTPException(
+            400,
+            "The cash statement covers less than approximately one year. In AJ Bell select the 1 Year period and download it again.",
+        )
+    missing = cash_dividends_outside_portfolio(db, cash_job, portfolio_job)
+    if missing:
+        preview = ", ".join(missing[:5])
+        suffix = "…" if len(missing) > 5 else ""
+        raise HTTPException(
+            400,
+            f"Cash statement contains dividend securities not known in {account.account_name}: {preview}{suffix}",
+        )
+    cash_result = commit_import(db, cash_job)
+    return {
+        "ok": True,
+        "account_id": account.id,
+        "account_name": account.account_name,
+        "account_code": account_code,
+        "portfolio_job_id": portfolio_job.id,
+        "cash_job_id": cash_job.id,
+        "committed": portfolio_result["committed"] + cash_result["committed"],
+        "duplicates": portfolio_result["duplicates"] + cash_result["duplicates"],
+        "warnings": portfolio_job.warning_count + cash_job.warning_count,
+        "statement_days": (cash_dates[-1] - cash_dates[0]).days,
+    }
+
+
 @app.get("/imports/warnings", response_class=HTMLResponse)
 def import_warnings_page(request: Request, db: Session = Depends(get_db)):
     warning_rows = db.scalars(
